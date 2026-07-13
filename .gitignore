@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+*.log
+npm-debug.log*
+.env
+.env.local
+web/dist/
+server/dist/
+shared/dist/
+
+# Mirrored terrain tiles can be large. The committed starter snapshot lives under
+# snapshot/ but heavy raw hires mirrors are ignored by default; commit intentionally.
+snapshot/raw-hires/

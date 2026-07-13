@@ -1,0 +1,338 @@
+import { useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import type {
+  Dimension,
+  HighwayNetwork,
+  LandmarkCollection,
+  RailwayNetwork,
+} from "@hcmap/shared";
+import {
+  MinecraftCRS,
+  NATIVE_ZOOM,
+  TILE_SIZE,
+  blockToLatLng,
+  latLngToBlock,
+  xzToLatLng,
+} from "./crs";
+import { buildOverlays, type OverlayHandlers, type OverlayToggles } from "./renderOverlays";
+import type { EditState } from "../edit/model";
+import type { RouteResult } from "../route/engine";
+import { MINECRAFT_ICONS } from "../icons/minecraftIcons";
+import {
+  type BackendStatus,
+  type BaseVariant,
+  type BlueMapMarkers,
+  type LivePlayer,
+  contoursUrl,
+  fetchJSON,
+  liveMarkersUrl,
+  livePlayersUrl,
+  manifestUrl,
+  snapshotMarkersUrl,
+  snapshotTileUrlTemplate,
+} from "../api";
+
+export type BaseMode = "terrain2d" | "minimal2d";
+
+export interface MapViewProps {
+  dimension: Dimension;
+  baseMode: BaseMode;
+  showContours: boolean;
+  showLive: boolean;
+  backend: BackendStatus;
+  overlays: {
+    highways: HighwayNetwork;
+    railways: RailwayNetwork;
+    landmarks: LandmarkCollection;
+  };
+  toggles: OverlayToggles;
+  edit: EditState;
+  overlayHandlers: OverlayHandlers;
+  route: RouteResult | null;
+  onCursor: (block: { x: number; z: number } | null) => void;
+  onMapClick: (block: { x: number; z: number }) => void;
+  onMapDblClick: () => void;
+}
+
+const SPAWN = { x: -182, z: 27 };
+
+function baseVariant(mode: BaseMode): BaseVariant {
+  return mode === "minimal2d" ? "minimal" : "terrain";
+}
+
+export function MapView(props: MapViewProps) {
+  const {
+    dimension,
+    baseMode,
+    showContours,
+    showLive,
+    backend,
+    overlays,
+    toggles,
+    edit,
+    overlayHandlers,
+  } = props;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const baseRef = useRef<L.TileLayer | null>(null);
+  const contourRef = useRef<L.GeoJSON | null>(null);
+  const liveRef = useRef<L.LayerGroup | null>(null);
+  const overlayRef = useRef<L.LayerGroup | null>(null);
+  const routeRef = useRef<L.LayerGroup | null>(null);
+  const [zoom, setZoom] = useState(0);
+
+  // Latest event callbacks, so the map can be initialised once (empty deps)
+  // while always invoking current handlers.
+  const cb = useRef({
+    onCursor: props.onCursor,
+    onMapClick: props.onMapClick,
+    onMapDblClick: props.onMapDblClick,
+  });
+  cb.current = {
+    onCursor: props.onCursor,
+    onMapClick: props.onMapClick,
+    onMapDblClick: props.onMapDblClick,
+  };
+
+  // --- init map once ---
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      crs: MinecraftCRS,
+      center: blockToLatLng(SPAWN.x, SPAWN.z),
+      zoom: -1,
+      minZoom: -5,
+      maxZoom: 5,
+      zoomControl: true,
+      attributionControl: false,
+      doubleClickZoom: false,
+    });
+    mapRef.current = map;
+    liveRef.current = L.layerGroup().addTo(map);
+    overlayRef.current = L.layerGroup().addTo(map);
+    routeRef.current = L.layerGroup().addTo(map);
+    setZoom(map.getZoom());
+    map.on("zoomend", () => setZoom(map.getZoom()));
+
+    map.on("mousemove", (e: L.LeafletMouseEvent) =>
+      cb.current.onCursor(latLngToBlock(e.latlng)),
+    );
+    map.on("mouseout", () => cb.current.onCursor(null));
+    map.on("click", (e: L.LeafletMouseEvent) =>
+      cb.current.onMapClick(latLngToBlock(e.latlng)),
+    );
+    map.on("dblclick", () => cb.current.onMapDblClick());
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // --- base tile layer (dimension + mode) ---
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    let cancelled = false;
+    // The manifest tells us how deep the overview pyramid goes for this
+    // dimension, so zoomed-out views load a few pre-shrunk tiles, not hundreds.
+    void fetchJSON<{ minNativeZoom?: number }>(manifestUrl(dimension)).then((m) => {
+      if (cancelled || !mapRef.current) return;
+      const minNative = m?.minNativeZoom ?? -4;
+      if (baseRef.current) baseRef.current.remove();
+      const layer = L.tileLayer(snapshotTileUrlTemplate(dimension, baseVariant(baseMode)), {
+        tileSize: TILE_SIZE,
+        minZoom: minNative - 1,
+        maxZoom: 6,
+        minNativeZoom: minNative,
+        maxNativeZoom: NATIVE_ZOOM,
+        noWrap: true,
+        keepBuffer: 2,
+        updateWhenZooming: false,
+        errorTileUrl:
+          "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+        className: baseMode === "minimal2d" ? "base-minimal" : "base-terrain",
+      });
+      layer.addTo(map);
+      layer.bringToBack();
+      baseRef.current = layer;
+      map.setMinZoom(minNative - 1);
+      map.setMaxZoom(6);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dimension, baseMode]);
+
+  // --- contour overlay ---
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (contourRef.current) {
+      contourRef.current.remove();
+      contourRef.current = null;
+    }
+    if (!showContours) return;
+    let cancelled = false;
+    void fetchJSON<GeoJSON.FeatureCollection>(contoursUrl(dimension)).then((geo) => {
+      if (cancelled || !geo || !mapRef.current) return;
+      const layer = L.geoJSON(geo, {
+        coordsToLatLng: xzToLatLng,
+        style: (f) => ({
+          color: "#5a4632",
+          weight: (f?.properties?.value ?? 0) % 40 === 0 ? 1.1 : 0.5,
+          opacity: 0.5,
+          fill: false,
+          interactive: false,
+        }),
+      });
+      layer.addTo(mapRef.current);
+      layer.bringToBack();
+      baseRef.current?.bringToBack();
+      contourRef.current = layer;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dimension, showContours]);
+
+  // --- overlays (highways / railways / landmarks + edit handles) ---
+  useEffect(() => {
+    const group = overlayRef.current;
+    if (!group) return;
+    group.clearLayers();
+    for (const layer of buildOverlays({
+      highways: overlays.highways,
+      railways: overlays.railways,
+      landmarks: overlays.landmarks,
+      toggles,
+      edit,
+      handlers: overlayHandlers,
+      pixelsPerBlock: Math.pow(2, zoom),
+    })) {
+      group.addLayer(layer);
+    }
+  }, [overlays, toggles, edit, overlayHandlers, zoom]);
+
+  // --- computed route highlight ---
+  useEffect(() => {
+    const group = routeRef.current;
+    if (!group) return;
+    group.clearLayers();
+    const route = props.route;
+    if (!route || !route.ok || route.points.length < 2) return;
+    const lls = route.points.map((p) => blockToLatLng(p.x, p.z));
+    group.addLayer(L.polyline(lls, { color: "#0b0d10", weight: 8, opacity: 0.5, interactive: false }));
+    group.addLayer(
+      L.polyline(lls, {
+        color: "#33d6ff",
+        weight: 4,
+        opacity: 0.95,
+        dashArray: route.mode === "rail" ? "10 6" : undefined,
+        interactive: false,
+      }),
+    );
+    for (const end of [lls[0], lls[lls.length - 1]]) {
+      group.addLayer(
+        L.circleMarker(end, {
+          radius: 6,
+          color: "#fff",
+          weight: 2,
+          fillColor: "#33d6ff",
+          fillOpacity: 1,
+          interactive: false,
+        }),
+      );
+    }
+  }, [props.route]);
+
+  // --- live players + markers overlay ---
+  useEffect(() => {
+    const group = liveRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!showLive) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    async function renderMarkers() {
+      const url = backend.available
+        ? liveMarkersUrl(dimension)
+        : snapshotMarkersUrl(dimension);
+      const sets = await fetchJSON<BlueMapMarkers>(url);
+      if (cancelled || !sets || !group) return;
+      for (const set of Object.values(sets)) {
+        for (const m of Object.values(set.markers ?? {})) {
+          if (!m.position) continue;
+          const marker = L.marker(blockToLatLng(m.position.x, m.position.z), {
+            icon: poiIcon(),
+          });
+          marker.bindTooltip(
+            `<b>${escapeHtml(m.label ?? "marker")}</b>${
+              m.detail ? `<br>${escapeHtml(m.detail)}` : ""
+            }`,
+          );
+          group.addLayer(marker);
+        }
+      }
+    }
+
+    async function renderPlayers() {
+      if (!backend.available) return;
+      const data = await fetchJSON<{ players: LivePlayer[] }>(livePlayersUrl(dimension));
+      if (cancelled || !group) return;
+      group.eachLayer((l) => {
+        if ((l as L.Layer & { _isPlayer?: boolean })._isPlayer) group.removeLayer(l);
+      });
+      for (const p of data?.players ?? []) {
+        const dot = L.circleMarker(blockToLatLng(p.position.x, p.position.z), {
+          radius: 5,
+          color: "#fff",
+          weight: 2,
+          fillColor: "#2ecc71",
+          fillOpacity: 1,
+        }) as L.CircleMarker & { _isPlayer?: boolean };
+        dot._isPlayer = true;
+        dot.bindTooltip(escapeHtml(p.name ?? "player"));
+        group.addLayer(dot);
+      }
+    }
+
+    void renderMarkers();
+    void renderPlayers();
+    timer = window.setInterval(renderPlayers, 5000);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [dimension, showLive, backend.available]);
+
+  return <div ref={containerRef} className="map-canvas" />;
+}
+
+function poiIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "landmark-marker",
+    html: `<div class="lm-badge circle" style="--c:#c9a54a"><img src="${MINECRAFT_ICONS.compass}" alt="" draggable="false"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}

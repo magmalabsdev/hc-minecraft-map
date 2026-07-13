@@ -1,0 +1,535 @@
+:root {
+  --panel-bg: rgba(24, 26, 30, 0.92);
+  --panel-fg: #e7e9ee;
+  --panel-muted: #9aa0ab;
+  --accent: #4a90d9;
+  --border: rgba(255, 255, 255, 0.09);
+  --mc-font: "Minecraft", ui-monospace, "Segoe UI", system-ui, sans-serif;
+  font-family: var(--mc-font);
+}
+
+body,
+button,
+input,
+select,
+.leaflet-container,
+.leaflet-tooltip {
+  font-family: var(--mc-font);
+}
+/* The pixel font renders best without heavy antialiasing. */
+.panel,
+.side,
+.route-panel,
+.coords,
+.leaflet-tooltip {
+  -webkit-font-smoothing: none;
+  letter-spacing: 0.2px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #0d0f12;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  background: #12161b;
+}
+
+/* Terrain tiles are pixel art — keep them crisp. */
+.leaflet-container img.leaflet-tile {
+  image-rendering: pixelated;
+}
+.leaflet-container {
+  background: #0d0f12;
+  outline: none;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--panel-muted);
+  text-align: center;
+}
+.placeholder button {
+  margin-top: 12px;
+}
+
+/* --- control panel --- */
+.panel {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1000;
+  width: 210px;
+  padding: 14px;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.panel-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 12px;
+  letter-spacing: 0.2px;
+}
+
+.panel section {
+  margin-bottom: 14px;
+}
+
+.section-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--panel-muted);
+  margin-bottom: 6px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 4px;
+}
+.btn-row button {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 11px;
+}
+.btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+button {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--panel-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot.ok {
+  background: #2ecc71;
+}
+.dot.off {
+  background: #7a808b;
+}
+
+.coords {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  z-index: 1000;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--panel-fg);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+/* --- markers --- */
+.poi-marker .poi-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50% 50% 50% 0;
+  background: #e8c14a;
+  border: 2px solid #2a2118;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* --- edit tools --- */
+.edit-tools .btn-row button {
+  font-size: 11px;
+  padding: 5px 4px;
+}
+.hint {
+  font-size: 11px;
+  color: var(--panel-muted);
+  margin: 6px 0 2px;
+  line-height: 1.35;
+}
+.err {
+  font-size: 11px;
+  color: #ff6b6b;
+  margin: 6px 0;
+}
+button.save {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.4);
+}
+button.save.dirty {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* --- side inspector panel --- */
+.side {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  width: 240px;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
+}
+.inspector {
+  padding: 14px;
+}
+.inspector h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.insp-empty {
+  font-size: 12px;
+  color: var(--panel-muted);
+  line-height: 1.4;
+}
+.inspector label {
+  font-size: 12px;
+  color: var(--panel-muted);
+}
+.inspector input[type="number"],
+.inspector input[type="text"],
+.inspector select {
+  width: 100%;
+  margin-top: 3px;
+  padding: 5px 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.inspector input[type="color"] {
+  width: 100%;
+  height: 28px;
+  margin-top: 3px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.field-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.field-row label {
+  flex: 1;
+}
+.stack {
+  display: block;
+  margin-bottom: 8px;
+}
+.disruption-box {
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 140, 26, 0.4);
+  border-radius: 8px;
+  background: rgba(255, 140, 26, 0.08);
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0;
+}
+.badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--panel-fg);
+}
+.badge.ok {
+  background: rgba(46, 204, 113, 0.25);
+}
+.badge.bad {
+  background: rgba(255, 107, 107, 0.3);
+}
+.badge.loop {
+  background: rgba(155, 89, 182, 0.3);
+}
+.row-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.row-buttons button {
+  flex: 1;
+}
+button.danger {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+/* --- editable node markers --- */
+.node-marker .node-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #2a2118;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+}
+.node-dot.sel {
+  background: #4a90d9;
+}
+.node-dot.active-end {
+  background: #2ecc71;
+  width: 12px;
+  height: 12px;
+}
+
+/* --- landmark badges --- */
+.landmark-marker .lm-badge {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--c, #e8c14a);
+  border: 2px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.landmark-marker .lm-badge img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  display: block;
+}
+.lm-badge.circle { border-radius: 50%; }
+.lm-badge.marker { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.lm-badge.marker > * { transform: rotate(45deg); }
+.lm-badge.square { border-radius: 3px; }
+.lm-badge.diamond { border-radius: 3px; transform: rotate(45deg); }
+.lm-badge.diamond > * { transform: rotate(-45deg); }
+.lm-badge.polygon { border-radius: 50%; }
+.lm-badge.sel { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* --- route finder --- */
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.route-toggle {
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1;
+}
+.route-panel {
+  position: absolute;
+  left: 14px;
+  bottom: 52px;
+  z-index: 1000;
+  width: 210px;
+  padding: 14px;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+.route-panel .btn-row {
+  margin-bottom: 8px;
+}
+.route-panel select {
+  width: 100%;
+  margin-top: 3px;
+  padding: 5px 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.route-panel label {
+  font-size: 12px;
+  color: var(--panel-muted);
+}
+.route-result {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.route-stat {
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+.route-stat b {
+  font-size: 18px;
+  color: #33d6ff;
+}
+
+/* --- 3D terrain --- */
+.three-host {
+  position: absolute;
+  inset: 0;
+  background: #0d0f12;
+}
+.three-canvas {
+  position: absolute;
+  inset: 0;
+}
+.three-canvas canvas {
+  display: block;
+}
+.three-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--panel-muted);
+  font-size: 14px;
+  text-align: center;
+  max-width: 300px;
+}
+.three-back {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+}
+.three-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  z-index: 1000;
+  font-size: 11px;
+  color: var(--panel-muted);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+/* --- Minecraft icon picker --- */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin: 4px 0 8px;
+}
+.icon-btn {
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.icon-btn img {
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+  display: block;
+}
+.icon-btn.sel {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- midpoint insert handles --- */
+.mid-marker .mid-handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1.5px dashed rgba(0, 0, 0, 0.6);
+  cursor: crosshair;
+}
+.mid-marker .mid-handle:hover {
+  background: #2ecc71;
+}
+
+/* --- inspector close + sections --- */
+.inspector {
+  position: relative;
+}
+.insp-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 6px;
+  z-index: 1;
+}
+.insp-sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+.route-section h3,
+.segment-section .section-label:first-child {
+  margin-top: 0;
+}

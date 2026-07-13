@@ -1,0 +1,24 @@
+{
+  "name": "hc-minecraft-map",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Web map of Hack Club SMP roads, railways, and landmarks over BlueMap terrain",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server & npm run dev --workspace web",
+    "dev:web": "npm run dev --workspace web",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspace web",
+    "mirror": "npm run mirror --workspace server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

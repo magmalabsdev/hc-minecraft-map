@@ -1,0 +1,24 @@
+{
+  "name": "@hcmap/server",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "mirror": "tsx src/mirror-cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "d3-contour": "^4.0.2",
+    "express": "^4.21.2",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/d3-contour": "^3.0.6",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.5",
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
