@@ -1,5 +1,5 @@
 import type { Dimension } from "@hcmap/shared";
-import { fetchJSON } from "../api";
+import { assetUrl, fetchJSON } from "../api";
 
 interface HeightHeader {
   originX: number;
@@ -21,10 +21,12 @@ export class HeightField {
   ) {}
 
   static async load(dim: Dimension): Promise<HeightField | null> {
-    const header = await fetchJSON<HeightHeader>(`/snapshot/${dim}/derived/height.json`);
+    const header = await fetchJSON<HeightHeader>(
+      assetUrl(`/snapshot/${dim}/derived/height.json`),
+    );
     if (!header) return null;
     const img = new Image();
-    img.src = `/snapshot/${dim}/derived/height.png`;
+    img.src = assetUrl(`/snapshot/${dim}/derived/height.png`);
     try {
       await img.decode();
     } catch {

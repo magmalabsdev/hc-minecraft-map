@@ -109,6 +109,7 @@ export function MapView(props: MapViewProps) {
       doubleClickZoom: false,
     });
     mapRef.current = map;
+    if (import.meta.env.DEV) (window as unknown as { __hcmap?: L.Map }).__hcmap = map;
     liveRef.current = L.layerGroup().addTo(map);
     overlayRef.current = L.layerGroup().addTo(map);
     routeRef.current = L.layerGroup().addTo(map);
@@ -200,8 +201,10 @@ export function MapView(props: MapViewProps) {
   // --- overlays (highways / railways / landmarks + edit handles) ---
   useEffect(() => {
     const group = overlayRef.current;
-    if (!group) return;
+    const map = mapRef.current;
+    if (!group || !map) return;
     group.clearLayers();
+    const patterns: { id: string; colors: string[] }[] = [];
     for (const layer of buildOverlays({
       highways: overlays.highways,
       railways: overlays.railways,
@@ -210,9 +213,11 @@ export function MapView(props: MapViewProps) {
       edit,
       handlers: overlayHandlers,
       pixelsPerBlock: Math.pow(2, zoom),
+      onPattern: (id, colors) => patterns.push({ id, colors }),
     })) {
       group.addLayer(layer);
     }
+    ensureStripePatterns(map, patterns);
   }, [overlays, toggles, edit, overlayHandlers, zoom]);
 
   // --- computed route highlight ---
@@ -309,6 +314,51 @@ export function MapView(props: MapViewProps) {
   }, [dimension, showLive, backend.available]);
 
   return <div ref={containerRef} className="map-canvas" />;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * Inject diagonal-stripe `<pattern>` defs (used by transfer-station bodies) into
+ * the Leaflet overlay SVG, so polygons filled with `url(#id)` resolve. Rebuilt
+ * each overlay pass; only our own `data-hcmap` patterns are touched.
+ */
+function ensureStripePatterns(
+  map: L.Map,
+  patterns: { id: string; colors: string[] }[],
+): void {
+  const svg = map.getPanes().overlayPane.querySelector("svg");
+  if (!svg) return;
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS(SVG_NS, "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  defs.querySelectorAll("pattern[data-hcmap]").forEach((el) => el.remove());
+  const seen = new Set<string>();
+  for (const { id, colors } of patterns) {
+    if (seen.has(id) || colors.length < 2) continue;
+    seen.add(id);
+    const sw = 9;
+    const size = colors.length * sw;
+    const pat = document.createElementNS(SVG_NS, "pattern");
+    pat.setAttribute("id", id);
+    pat.setAttribute("data-hcmap", "1");
+    pat.setAttribute("patternUnits", "userSpaceOnUse");
+    pat.setAttribute("width", String(size));
+    pat.setAttribute("height", String(size));
+    pat.setAttribute("patternTransform", "rotate(45)");
+    colors.forEach((c, i) => {
+      const rect = document.createElementNS(SVG_NS, "rect");
+      rect.setAttribute("x", String(i * sw));
+      rect.setAttribute("y", "0");
+      rect.setAttribute("width", String(sw));
+      rect.setAttribute("height", String(size));
+      rect.setAttribute("fill", c);
+      pat.appendChild(rect);
+    });
+    defs.appendChild(pat);
+  }
 }
 
 function poiIcon(): L.DivIcon {

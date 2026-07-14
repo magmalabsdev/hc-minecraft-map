@@ -8,7 +8,8 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const backend = process.env.HCMAP_BACKEND ?? "http://localhost:8787";
 
 /** Bundle the committed snapshot + overlay data into the static build so the
- *  published site works with no backend running. */
+ *  published site works with no backend running, and add .nojekyll so GitHub
+ *  Pages serves the asset folders verbatim. */
 function copyStaticData(): Plugin {
   return {
     name: "hcmap-copy-static",
@@ -21,11 +22,15 @@ function copyStaticData(): Plugin {
           fs.cpSync(src, path.join(out, dir), { recursive: true });
         }
       }
+      fs.writeFileSync(path.join(out, ".nojekyll"), "");
     },
   };
 }
 
 export default defineConfig({
+  // Site root by default (local dev / custom domain). GitHub Pages project
+  // sites live under /<repo>/, so the deploy workflow sets VITE_BASE=/<repo>/.
+  base: process.env.VITE_BASE ?? "/",
   plugins: [react(), copyStaticData()],
   resolve: {
     alias: {

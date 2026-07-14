@@ -8,31 +8,39 @@ import type { Dimension } from "@hcmap/shared";
 
 export type BaseVariant = "terrain" | "minimal";
 
+/**
+ * Prefix an absolute app path with Vite's base URL, so the app works both at the
+ * site root (local dev) and under a subpath (GitHub Pages: /<repo>/).
+ */
+export function assetUrl(path: string): string {
+  return import.meta.env.BASE_URL + path.replace(/^\//, "");
+}
+
 export function snapshotTileUrlTemplate(
   dim: Dimension,
   variant: BaseVariant,
 ): string {
-  return `/snapshot/${dim}/${variant}/{z}/{x}/{y}.png`;
+  return assetUrl(`/snapshot/${dim}/${variant}/{z}/{x}/{y}.png`);
 }
 
 export function manifestUrl(dim: Dimension): string {
-  return `/snapshot/${dim}/manifest.json`;
+  return assetUrl(`/snapshot/${dim}/manifest.json`);
 }
 
 export function contoursUrl(dim: Dimension): string {
-  return `/snapshot/${dim}/derived/contours.geojson`;
+  return assetUrl(`/snapshot/${dim}/derived/contours.geojson`);
 }
 
 export function snapshotMarkersUrl(dim: Dimension): string {
-  return `/snapshot/${dim}/markers.json`;
+  return assetUrl(`/snapshot/${dim}/markers.json`);
 }
 
 export function liveMarkersUrl(dim: Dimension): string {
-  return `/api/mirror/maps/${dim}/live/markers.json`;
+  return assetUrl(`/api/mirror/maps/${dim}/live/markers.json`);
 }
 
 export function livePlayersUrl(dim: Dimension): string {
-  return `/api/mirror/maps/${dim}/live/players.json`;
+  return assetUrl(`/api/mirror/maps/${dim}/live/players.json`);
 }
 
 export interface BackendStatus {
@@ -43,7 +51,7 @@ export interface BackendStatus {
 /** Detect whether a local backend is running (enables fresh data + editing). */
 export async function checkBackend(): Promise<BackendStatus> {
   try {
-    const res = await fetch("/api/health", { signal: AbortSignal.timeout(1500) });
+    const res = await fetch(assetUrl("/api/health"), { signal: AbortSignal.timeout(1500) });
     if (!res.ok) return { available: false, editable: false };
     const body = (await res.json()) as { editable?: boolean };
     return { available: true, editable: Boolean(body.editable) };

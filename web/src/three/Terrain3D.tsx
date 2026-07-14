@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { Dimension } from "@hcmap/shared";
-import { fetchJSON } from "../api";
+import { assetUrl, fetchJSON } from "../api";
 import { HeightField } from "../route/heightField";
 
 interface Manifest {
@@ -43,7 +43,7 @@ async function buildTexture(dim: Dimension, m: Manifest): Promise<HTMLCanvasElem
   for (let tz = tzMin; tz <= tzMax; tz++) {
     for (let tx = txMin; tx <= txMax; tx++) {
       jobs.push(
-        loadImage(`/snapshot/${dim}/terrain/0/${tx}/${tz}.png`).then((img) => {
+        loadImage(assetUrl(`/snapshot/${dim}/terrain/0/${tx}/${tz}.png`)).then((img) => {
           if (img) ctx.drawImage(img, (tx - txMin) * S, (tz - tzMin) * S);
         }),
       );
@@ -66,8 +66,8 @@ export function Terrain3D({ dimension, onBack }: { dimension: Dimension; onBack:
 
     (async () => {
       const [header, manifest, hf] = await Promise.all([
-        fetchJSON<HeightHeader>(`/snapshot/${dimension}/derived/height.json`),
-        fetchJSON<Manifest>(`/snapshot/${dimension}/manifest.json`),
+        fetchJSON<HeightHeader>(assetUrl(`/snapshot/${dimension}/derived/height.json`)),
+        fetchJSON<Manifest>(assetUrl(`/snapshot/${dimension}/manifest.json`)),
         HeightField.load(dimension),
       ]);
       if (disposed) return;

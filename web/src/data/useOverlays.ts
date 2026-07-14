@@ -7,7 +7,7 @@ import {
   emptyLandmarks,
   emptyRailwayNetwork,
 } from "@hcmap/shared";
-import { fetchJSON } from "../api";
+import { assetUrl, fetchJSON } from "../api";
 import { migrateNetworkPaved } from "../edit/model";
 
 export type LineKind = "highway" | "railway";
@@ -31,7 +31,7 @@ export interface Overlays {
 
 /** Static read path (works without backend); writes go through /api/data. */
 function readUrl(kind: DataKind): string {
-  return `/data/${kind}.json`;
+  return assetUrl(`/data/${kind}.json`);
 }
 
 export function useOverlays(): Overlays {
@@ -113,7 +113,7 @@ export function useOverlays(): Overlays {
   const save = useCallback(
     async (kind: DataKind): Promise<boolean> => {
       try {
-        const res = await fetch(`/api/data/${kind}`, {
+        const res = await fetch(assetUrl(`/api/data/${kind}`), {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(docFor(kind)),

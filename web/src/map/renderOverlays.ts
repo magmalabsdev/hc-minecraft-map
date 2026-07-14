@@ -86,6 +86,23 @@ export interface OverlayRenderOpts {
   handlers: OverlayHandlers;
   /** Screen pixels per block at the current zoom (2^zoom). */
   pixelsPerBlock: number;
+  /** Register an SVG stripe pattern (for transfer-station bodies). */
+  onPattern?: (id: string, colors: string[]) => void;
+}
+
+/** Deterministic id for a stripe pattern of the given colours. */
+export function stripePatternId(colors: string[]): string {
+  return "hcmap-stripe-" + colors.map((c) => c.replace("#", "")).join("-");
+}
+
+/** CSS conic-gradient of equal slices — a pie chart from the given colours. */
+function conicGradient(colors: string[]): string {
+  if (colors.length <= 1) return colors[0] ?? "#d0d0d0";
+  const step = 100 / colors.length;
+  const stops = colors
+    .map((c, i) => `${c} ${(i * step).toFixed(3)}% ${((i + 1) * step).toFixed(3)}%`)
+    .join(", ");
+  return `conic-gradient(from -90deg, ${stops})`;
 }
 
 /** Minimum on-screen line weight so thin roads stay visible when zoomed out. */
@@ -393,22 +410,32 @@ function pushStationLike(
   opts: OverlayRenderOpts,
 ): void {
   if (st.polygon.length < 3) return;
-  const color = routes.find((r) => st.lineIds.includes(r.id))?.color ?? "#d0d0d0";
+  // All lines this station serves, in a stable order.
+  const lines = routes.filter((r) => st.lineIds.includes(r.id));
+  const colors = lines.length ? lines.map((l) => l.color ?? "#888") : ["#d0d0d0"];
   const ring = st.polygon.map((p) => blockToLatLng(p.x, p.z));
+
+  // Body: striped with every served line's colour (SVG pattern), or solid for one.
+  let fillColor = colors[0];
+  if (colors.length > 1) {
+    const id = stripePatternId(colors);
+    opts.onPattern?.(id, colors);
+    fillColor = `url(#${id})`;
+  }
   const poly = L.polygon(ring, {
-    color,
+    color: "#20242b",
     weight: 2,
-    fillColor: color,
-    fillOpacity: 0.25,
+    fillColor,
+    fillOpacity: colors.length > 1 ? 0.65 : 0.3,
   });
-  poly.bindTooltip(`<b>${escape(st.name)}</b>`);
+  poly.bindTooltip(stationTooltip(st, lines));
   poly.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
   });
   layers.push(poly);
 
-  // Station icon (minecart) in the line colour at the polygon centroid.
+  // Icon: a larger pie-chart badge of the served lines with a minecart on top.
   const n = st.polygon.length;
   const cx = st.polygon.reduce((s, p) => s + p.x, 0) / n;
   const cz = st.polygon.reduce((s, p) => s + p.z, 0) / n;
@@ -416,14 +443,14 @@ function pushStationLike(
   const marker = L.marker(blockToLatLng(cx, cz), {
     icon: L.divIcon({
       className: "landmark-marker",
-      html: `<div class="lm-badge circle${selected ? " sel" : ""}" style="--c:${color}"><img src="${iconUri(
-        "minecart",
-      )}" alt="" draggable="false"></div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      html: `<div class="lm-badge station-pie${selected ? " sel" : ""}" style="background:${conicGradient(
+        colors,
+      )}"><span class="station-inner"><img src="${iconUri("minecart")}" alt="" draggable="false"></span></div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
     }),
   });
-  marker.bindTooltip(`<b>${escape(st.name)}</b>`);
+  marker.bindTooltip(stationTooltip(st, lines));
   marker.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
@@ -498,6 +525,16 @@ function centroid(lm: Landmark): L.LatLng {
   const sx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
   const sz = pts.reduce((s, p) => s + p.z, 0) / pts.length;
   return blockToLatLng(sx, sz);
+}
+
+function stationTooltip(st: Station, lines: Route[]): string {
+  const list = lines.length
+    ? "<br>" +
+      lines
+        .map((l) => `<span style="color:${l.color ?? "#ccc"}">■</span> ${escape(l.name)}`)
+        .join("<br>")
+    : "";
+  return `<b>🚆 ${escape(st.name)}</b>${list}`;
 }
 
 function escape(s: string): string {
