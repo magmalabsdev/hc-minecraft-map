@@ -31,10 +31,11 @@ jobs:
 
       - name: Build static site
         run: npm run build
-        # Project pages are served from https://<owner>.github.io/<repo>/, so the
-        # app must be built with that subpath as its base.
+        # Served at the root of the custom domain (mc.magmalabs.dev), so base "/".
+        # For a plain github.io/<repo>/ project page instead, set
+        # VITE_BASE: /${{ github.event.repository.name }}/
         env:
-          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_BASE: /
 
       - uses: actions/configure-pages@v5
 
