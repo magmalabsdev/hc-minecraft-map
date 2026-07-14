@@ -169,6 +169,49 @@ function nodeLatLng(net: Network, id: Id): L.LatLng | null {
   return n ? blockToLatLng(n.x, n.z) : null;
 }
 
+function polyCentroid(poly: Vec2[]): { x: number; z: number } {
+  const n = poly.length || 1;
+  return {
+    x: poly.reduce((s, p) => s + p.x, 0) / n,
+    z: poly.reduce((s, p) => s + p.z, 0) / n,
+  };
+}
+
+/** Nearest station serving `lineId` to a point, by polygon centroid distance. */
+function nearestServingStation(
+  net: Network,
+  lineId: Id,
+  at: { x: number; z: number },
+): Station | null {
+  if (net.kind !== "railway") return null;
+  let best: Station | null = null;
+  let bestD = Infinity;
+  for (const st of net.stations) {
+    if (!st.lineIds.includes(lineId) || st.polygon.length < 1) continue;
+    const c = polyCentroid(st.polygon);
+    const d = Math.hypot(c.x - at.x, c.z - at.z);
+    if (d < bestD) {
+      bestD = d;
+      best = st;
+    }
+  }
+  return best;
+}
+
+/** "Terminus A ↔ Terminus B" for a rail line — end stations, coords, or loop. */
+function railTermini(route: Route, net: Network): string {
+  const ids = route.nodeIds;
+  if (!ids.length) return "";
+  if (ids.length >= 2 && ids[0] === ids[ids.length - 1]) return "⟳ loop line";
+  const label = (nid: Id): string => {
+    const node = net.nodes[nid];
+    if (!node) return "?";
+    const st = nearestServingStation(net, route.id, node);
+    return st ? escape(st.name) : `${Math.round(node.x)}, ${Math.round(node.z)}`;
+  };
+  return `${label(ids[0])} ↔ ${label(ids[ids.length - 1])}`;
+}
+
 function pushNetwork(
   layers: L.Layer[],
   kind: LineKind,
@@ -179,14 +222,18 @@ function pushNetwork(
   const isActiveEditLayer = edit.enabled && edit.layer === kind;
   const rail = kind === "railway";
 
-  // Primary route color per segment (first route that uses it).
+  // Which routes traverse each segment (first one drives its colour).
   const segColor = new Map<Id, string>();
+  const segRoutes = new Map<Id, Route[]>();
   for (const route of net.routes) {
     for (let i = 0; i + 1 < route.nodeIds.length; i++) {
       const a = route.nodeIds[i];
       const b = route.nodeIds[i + 1];
       const key = a < b ? `${a}::${b}` : `${b}::${a}`;
       if (!segColor.has(key)) segColor.set(key, route.color ?? "#4a90d9");
+      let list = segRoutes.get(key);
+      if (!list) segRoutes.set(key, (list = []));
+      if (!list.includes(route)) list.push(route);
     }
   }
 
@@ -218,14 +265,30 @@ function pushNetwork(
       dashArray,
       lineCap: paved || rail ? "round" : "butt",
     });
-    const parts = [
-      `${props.width} wide`,
-      paved ? "paved" : "unpaved",
-      props.flat ? "flat" : "sloped",
-      props.lit ? "lit" : "unlit",
-    ];
-    if (disrupted) parts.push(`⚠ ${disruptionTypeLabel(type)}${note ? `: ${note}` : ""}`);
-    line.bindTooltip(parts.join(" · "), { sticky: true });
+    const usingRoutes = segRoutes.get(seg.id) ?? [];
+    const disrupt = disrupted
+      ? `⚠ ${disruptionTypeLabel(type)}${note ? `: ${escape(note)}` : ""}`
+      : "";
+    let tip: string;
+    if (rail) {
+      // Rail: line name(s) + termini (the physical width/paving is irrelevant).
+      const body = usingRoutes.length
+        ? usingRoutes
+            .map((r) => `<b>${escape(r.name)}</b><br>${railTermini(r, net)}`)
+            .join("<br><br>")
+        : "<b>Railway</b>";
+      tip = body + (disrupt ? `<br>${disrupt}` : "");
+    } else {
+      // Highway: line 1 route name, line 2 path info, line 3 disruption (if any).
+      const name = usingRoutes.length
+        ? usingRoutes.map((r) => escape(r.name)).join(", ")
+        : "Highway";
+      const path = `${props.width} wide · ${paved ? "paved" : "unpaved"} · ${
+        props.flat ? "flat" : "sloped"
+      } · ${props.lit ? "lit" : "unlit"}`;
+      tip = `<b>${name}</b><br>${path}${disrupt ? `<br>${disrupt}` : ""}`;
+    }
+    line.bindTooltip(tip, { sticky: true });
     line.on("click", (e) => {
       L.DomEvent.stop(e);
       handlers.onSelect({ type: "segment", net: kind, id: seg.id });
