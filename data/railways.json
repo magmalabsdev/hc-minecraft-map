@@ -200,6 +200,21 @@
       "id": "n_mrjxueay5b",
       "x": -862,
       "z": -345
+    },
+    "n_mrjz5pmk3": {
+      "id": "n_mrjz5pmk3",
+      "x": -446,
+      "z": -10
+    },
+    "n_mrjz5rzj5": {
+      "id": "n_mrjz5rzj5",
+      "x": -446,
+      "z": 121
+    },
+    "n_mrk1vh247": {
+      "id": "n_mrk1vh247",
+      "x": 256,
+      "z": 260
     }
   },
   "segments": {
@@ -526,6 +541,15 @@
       "flat": false,
       "lit": false,
       "paved": true
+    },
+    "n_mrjz5pmk3::n_mrjz5rzj5": {
+      "id": "n_mrjz5pmk3::n_mrjz5rzj5",
+      "a": "n_mrjz5pmk3",
+      "b": "n_mrjz5rzj5",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
     }
   },
   "routes": [
@@ -628,6 +652,21 @@
         "n_mrjxueay5b"
       ],
       "color": "#911eb4",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    },
+    {
+      "id": "r_mrjz5pmj1",
+      "name": "Magma Labs Norfolk Tram",
+      "nodeIds": [
+        "n_mrjz5pmk3",
+        "n_mrjz5rzj5"
+      ],
+      "color": "#a822c3",
       "defaults": {
         "width": 3,
         "flat": false,
@@ -773,7 +812,9 @@
           "z": -2
         }
       ],
-      "lineIds": []
+      "lineIds": [
+        "r_mrjz5pmj1"
+      ]
     },
     {
       "id": "st_mrjxqrh93e",
@@ -801,7 +842,8 @@
         }
       ],
       "lineIds": [
-        "r_mrjxmzk32j"
+        "r_mrjxmzk32j",
+        "r_mrjz5pmj1"
       ]
     },
     {

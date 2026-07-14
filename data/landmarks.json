@@ -810,6 +810,31 @@
       "color": "#64cde8",
       "shape": "polygon",
       "icon": "nether_star"
+    },
+    {
+      "id": "l_mrk39wmt2",
+      "name": "YTK Transport Tower",
+      "polygon": [
+        {
+          "x": -257,
+          "z": 160
+        },
+        {
+          "x": -256,
+          "z": 176
+        },
+        {
+          "x": -240,
+          "z": 176
+        },
+        {
+          "x": -240,
+          "z": 160
+        }
+      ],
+      "color": "#4a90d9",
+      "shape": "polygon",
+      "icon": "iron_ingot"
     }
   ]
 }
