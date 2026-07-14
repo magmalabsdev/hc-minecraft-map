@@ -33,18 +33,43 @@ export interface SegmentProps {
   width: number;
   flat: boolean;
   lit: boolean;
+  /** Whether the road surface is paved. Missing in legacy data => treat as true. */
+  paved: boolean;
+}
+
+/** The kind of disruption affecting a segment. "construction" renders specially. */
+export type DisruptionType =
+  | "construction"
+  | "closure"
+  | "hazard"
+  | "flooding"
+  | "other";
+
+export const DISRUPTION_TYPES: { id: DisruptionType; label: string }[] = [
+  { id: "construction", label: "Construction" },
+  { id: "closure", label: "Closure" },
+  { id: "hazard", label: "Hazard" },
+  { id: "flooding", label: "Flooding" },
+  { id: "other", label: "Other" },
+];
+
+export function disruptionTypeLabel(t: DisruptionType | undefined): string {
+  return DISRUPTION_TYPES.find((d) => d.id === t)?.label ?? "Disruption";
 }
 
 /**
- * A deviation from a segment's standard values. Any field left undefined keeps
- * the standard value. When `active`, routes render the segment in the
- * disruption color and display the disrupted values.
+ * A deviation from a segment's standard values. Any override field left undefined
+ * keeps the standard value. When `active`, routes render the segment in the
+ * disruption style and display the disrupted values.
  */
 export interface Disruption {
   active: boolean;
+  /** What kind of disruption this is (drives styling + description). */
+  type?: DisruptionType;
   width?: number;
   flat?: boolean;
   lit?: boolean;
+  paved?: boolean;
   note?: string;
 }
 

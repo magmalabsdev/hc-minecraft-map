@@ -1,5 +1,7 @@
 import { type ReactNode, useState } from "react";
 import {
+  DISRUPTION_TYPES,
+  type DisruptionType,
   type Id,
   type Landmark,
   type LandmarkShape,
@@ -213,6 +215,7 @@ function RouteSection(p: {
   const uWidth = routeSegmentsUniform(net, route, (s) => s.width);
   const uFlat = routeSegmentsUniform(net, route, (s) => s.flat);
   const uLit = routeSegmentsUniform(net, route, (s) => s.lit);
+  const uPaved = routeSegmentsUniform(net, route, (s) => s.paved ?? true);
   const setIndet = (mixed: boolean) => (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = mixed;
   };
@@ -299,6 +302,18 @@ function RouteSection(p: {
             />
             Lit
           </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              ref={setIndet(uPaved === undefined)}
+              checked={uPaved ?? true}
+              onChange={(e) => {
+                batch((s) => (s.paved = e.target.checked));
+                patch((r) => (r.defaults.paved = e.target.checked));
+              }}
+            />
+            Paved
+          </label>
           <div className="row-buttons" style={{ marginTop: 6 }}>
             <button onClick={() => batch((s) => (s.disruption = { ...(s.disruption ?? {}), active: true }))}>
               Disrupt all
@@ -367,6 +382,15 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
         <input type="checkbox" disabled={!p.editable} checked={seg.lit} onChange={(e) => patch((s) => (s.lit = e.target.checked))} />
         Lit
       </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          disabled={!p.editable}
+          checked={seg.paved ?? true}
+          onChange={(e) => patch((s) => (s.paved = e.target.checked))}
+        />
+        Paved
+      </label>
 
       <div className="disruption-box">
         <label className="check">
@@ -374,12 +398,33 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
             type="checkbox"
             disabled={!p.editable}
             checked={!!d?.active}
-            onChange={(e) => patch((s) => (s.disruption = { ...(s.disruption ?? {}), active: e.target.checked }))}
+            onChange={(e) =>
+              patch((s) => {
+                s.disruption = {
+                  ...(s.disruption ?? {}),
+                  active: e.target.checked,
+                  type: s.disruption?.type ?? "construction",
+                };
+              })
+            }
           />
           <b>Disruption active</b>
         </label>
         {d?.active && p.editable && (
           <>
+            <label className="stack">
+              Type
+              <select
+                value={d.type ?? "construction"}
+                onChange={(e) => patch((s) => (s.disruption!.type = e.target.value as DisruptionType))}
+              >
+                {DISRUPTION_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="hint">Enter values that deviate from the standard.</p>
             <div className="field-row">
               <label>

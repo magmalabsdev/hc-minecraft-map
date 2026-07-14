@@ -8,6 +8,7 @@ import {
   emptyRailwayNetwork,
 } from "@hcmap/shared";
 import { fetchJSON } from "../api";
+import { migrateNetworkPaved } from "../edit/model";
 
 export type LineKind = "highway" | "railway";
 export type DataKind = "highways" | "railways" | "landmarks";
@@ -52,8 +53,14 @@ export function useOverlays(): Overlays {
       fetchJSON<LandmarkCollection>(readUrl("landmarks")),
     ]).then(([h, r, l]) => {
       if (cancelled) return;
-      if (h) setHighways(h);
-      if (r) setRailways(r);
+      if (h) {
+        migrateNetworkPaved(h);
+        setHighways(h);
+      }
+      if (r) {
+        migrateNetworkPaved(r);
+        setRailways(r);
+      }
       if (l) setLandmarks(l);
       setLoaded(true);
     });

@@ -1,7 +1,989 @@
 {
   "kind": "railway",
-  "nodes": {},
-  "segments": {},
-  "routes": [],
-  "stations": []
+  "nodes": {
+    "n_mrjxmzk32l": {
+      "id": "n_mrjxmzk32l",
+      "x": -768,
+      "z": 127
+    },
+    "n_mrjxn0dd2n": {
+      "id": "n_mrjxn0dd2n",
+      "x": -626,
+      "z": 124
+    },
+    "n_mrjxn17o2p": {
+      "id": "n_mrjxn17o2p",
+      "x": -604,
+      "z": 131
+    },
+    "n_mrjxn4x62r": {
+      "id": "n_mrjxn4x62r",
+      "x": -109,
+      "z": 128
+    },
+    "n_mrjxn7k92t": {
+      "id": "n_mrjxn7k92t",
+      "x": 228,
+      "z": 130
+    },
+    "n_mrjxncai2v": {
+      "id": "n_mrjxncai2v",
+      "x": 248,
+      "z": 132
+    },
+    "n_mrjxny112y": {
+      "id": "n_mrjxny112y",
+      "x": -744,
+      "z": -6
+    },
+    "n_mrjxnz4230": {
+      "id": "n_mrjxnz4230",
+      "x": -744,
+      "z": 29
+    },
+    "n_mrjxo0fa32": {
+      "id": "n_mrjxo0fa32",
+      "x": -743,
+      "z": 132
+    },
+    "n_mrjxo4k334": {
+      "id": "n_mrjxo4k334",
+      "x": -722,
+      "z": 175
+    },
+    "n_mrjxo65h36": {
+      "id": "n_mrjxo65h36",
+      "x": -719,
+      "z": 208
+    },
+    "n_mrjxrlne3h": {
+      "id": "n_mrjxrlne3h",
+      "x": -731,
+      "z": -46
+    },
+    "n_mrjxrmvk3j": {
+      "id": "n_mrjxrmvk3j",
+      "x": -730,
+      "z": -77
+    },
+    "n_mrjxrnkr3l": {
+      "id": "n_mrjxrnkr3l",
+      "x": -739,
+      "z": -89
+    },
+    "n_mrjxrp793n": {
+      "id": "n_mrjxrp793n",
+      "x": -979,
+      "z": -90
+    },
+    "n_mrjxrpzv3p": {
+      "id": "n_mrjxrpzv3p",
+      "x": -1014,
+      "z": -72
+    },
+    "n_mrjxrr263r": {
+      "id": "n_mrjxrr263r",
+      "x": -1132,
+      "z": -71
+    },
+    "n_mrjxrs4u3t": {
+      "id": "n_mrjxrs4u3t",
+      "x": -1185,
+      "z": -46
+    },
+    "n_mrjxrsyf3v": {
+      "id": "n_mrjxrsyf3v",
+      "x": -1251,
+      "z": -46
+    },
+    "n_mrjxrtnc3x": {
+      "id": "n_mrjxrtnc3x",
+      "x": -1268,
+      "z": -34
+    },
+    "n_mrjxrvx43z": {
+      "id": "n_mrjxrvx43z",
+      "x": -1449,
+      "z": -34
+    },
+    "n_mrjxrwpf41": {
+      "id": "n_mrjxrwpf41",
+      "x": -1483,
+      "z": -54
+    },
+    "n_mrjxrxy643": {
+      "id": "n_mrjxrxy643",
+      "x": -1484,
+      "z": -129
+    },
+    "n_mrjxrymx45": {
+      "id": "n_mrjxrymx45",
+      "x": -1471,
+      "z": -139
+    },
+    "n_mrjxrzde47": {
+      "id": "n_mrjxrzde47",
+      "x": -1438,
+      "z": -161
+    },
+    "n_mrjxs23b49": {
+      "id": "n_mrjxs23b49",
+      "x": -1435,
+      "z": -593
+    },
+    "n_mrjxs2wp4b": {
+      "id": "n_mrjxs2wp4b",
+      "x": -1444,
+      "z": -608
+    },
+    "n_mrjxs45h4d": {
+      "id": "n_mrjxs45h4d",
+      "x": -1498,
+      "z": -607
+    },
+    "n_mrjxs4tf4f": {
+      "id": "n_mrjxs4tf4f",
+      "x": -1509,
+      "z": -616
+    },
+    "n_mrjxs6jm4h": {
+      "id": "n_mrjxs6jm4h",
+      "x": -1508,
+      "z": -653
+    },
+    "n_mrjxs77k4j": {
+      "id": "n_mrjxs77k4j",
+      "x": -1519,
+      "z": -664
+    },
+    "n_mrjxs92i4l": {
+      "id": "n_mrjxs92i4l",
+      "x": -1870,
+      "z": -662
+    },
+    "n_mrjxsa0h4n": {
+      "id": "n_mrjxsa0h4n",
+      "x": -1884,
+      "z": -674
+    },
+    "n_mrjxsbu34p": {
+      "id": "n_mrjxsbu34p",
+      "x": -1887,
+      "z": -850
+    },
+    "n_mrjxsjsy4s": {
+      "id": "n_mrjxsjsy4s",
+      "x": -1561,
+      "z": -583
+    },
+    "n_mrjxu8sx53": {
+      "id": "n_mrjxu8sx53",
+      "x": -731,
+      "z": -174
+    },
+    "n_mrjxuawu55": {
+      "id": "n_mrjxuawu55",
+      "x": -730,
+      "z": -305
+    },
+    "n_mrjxubx157": {
+      "id": "n_mrjxubx157",
+      "x": -731,
+      "z": -341
+    },
+    "n_mrjxucm259": {
+      "id": "n_mrjxucm259",
+      "x": -739,
+      "z": -345
+    },
+    "n_mrjxueay5b": {
+      "id": "n_mrjxueay5b",
+      "x": -862,
+      "z": -345
+    }
+  },
+  "segments": {
+    "n_mrjxmzk32l::n_mrjxn0dd2n": {
+      "id": "n_mrjxmzk32l::n_mrjxn0dd2n",
+      "a": "n_mrjxmzk32l",
+      "b": "n_mrjxn0dd2n",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxn0dd2n::n_mrjxn17o2p": {
+      "id": "n_mrjxn0dd2n::n_mrjxn17o2p",
+      "a": "n_mrjxn0dd2n",
+      "b": "n_mrjxn17o2p",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxn17o2p::n_mrjxn4x62r": {
+      "id": "n_mrjxn17o2p::n_mrjxn4x62r",
+      "a": "n_mrjxn17o2p",
+      "b": "n_mrjxn4x62r",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxn4x62r::n_mrjxn7k92t": {
+      "id": "n_mrjxn4x62r::n_mrjxn7k92t",
+      "a": "n_mrjxn4x62r",
+      "b": "n_mrjxn7k92t",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxn7k92t::n_mrjxncai2v": {
+      "id": "n_mrjxn7k92t::n_mrjxncai2v",
+      "a": "n_mrjxn7k92t",
+      "b": "n_mrjxncai2v",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxny112y::n_mrjxnz4230": {
+      "id": "n_mrjxny112y::n_mrjxnz4230",
+      "a": "n_mrjxny112y",
+      "b": "n_mrjxnz4230",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxnz4230::n_mrjxo0fa32": {
+      "id": "n_mrjxnz4230::n_mrjxo0fa32",
+      "a": "n_mrjxnz4230",
+      "b": "n_mrjxo0fa32",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxo0fa32::n_mrjxo4k334": {
+      "id": "n_mrjxo0fa32::n_mrjxo4k334",
+      "a": "n_mrjxo0fa32",
+      "b": "n_mrjxo4k334",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxo4k334::n_mrjxo65h36": {
+      "id": "n_mrjxo4k334::n_mrjxo65h36",
+      "a": "n_mrjxo4k334",
+      "b": "n_mrjxo65h36",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrlne3h::n_mrjxrmvk3j": {
+      "id": "n_mrjxrlne3h::n_mrjxrmvk3j",
+      "a": "n_mrjxrlne3h",
+      "b": "n_mrjxrmvk3j",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrmvk3j::n_mrjxrnkr3l": {
+      "id": "n_mrjxrmvk3j::n_mrjxrnkr3l",
+      "a": "n_mrjxrmvk3j",
+      "b": "n_mrjxrnkr3l",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrnkr3l::n_mrjxrp793n": {
+      "id": "n_mrjxrnkr3l::n_mrjxrp793n",
+      "a": "n_mrjxrnkr3l",
+      "b": "n_mrjxrp793n",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrp793n::n_mrjxrpzv3p": {
+      "id": "n_mrjxrp793n::n_mrjxrpzv3p",
+      "a": "n_mrjxrp793n",
+      "b": "n_mrjxrpzv3p",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrpzv3p::n_mrjxrr263r": {
+      "id": "n_mrjxrpzv3p::n_mrjxrr263r",
+      "a": "n_mrjxrpzv3p",
+      "b": "n_mrjxrr263r",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrr263r::n_mrjxrs4u3t": {
+      "id": "n_mrjxrr263r::n_mrjxrs4u3t",
+      "a": "n_mrjxrr263r",
+      "b": "n_mrjxrs4u3t",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrs4u3t::n_mrjxrsyf3v": {
+      "id": "n_mrjxrs4u3t::n_mrjxrsyf3v",
+      "a": "n_mrjxrs4u3t",
+      "b": "n_mrjxrsyf3v",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrsyf3v::n_mrjxrtnc3x": {
+      "id": "n_mrjxrsyf3v::n_mrjxrtnc3x",
+      "a": "n_mrjxrsyf3v",
+      "b": "n_mrjxrtnc3x",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrtnc3x::n_mrjxrvx43z": {
+      "id": "n_mrjxrtnc3x::n_mrjxrvx43z",
+      "a": "n_mrjxrtnc3x",
+      "b": "n_mrjxrvx43z",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrvx43z::n_mrjxrwpf41": {
+      "id": "n_mrjxrvx43z::n_mrjxrwpf41",
+      "a": "n_mrjxrvx43z",
+      "b": "n_mrjxrwpf41",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrwpf41::n_mrjxrxy643": {
+      "id": "n_mrjxrwpf41::n_mrjxrxy643",
+      "a": "n_mrjxrwpf41",
+      "b": "n_mrjxrxy643",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrxy643::n_mrjxrymx45": {
+      "id": "n_mrjxrxy643::n_mrjxrymx45",
+      "a": "n_mrjxrxy643",
+      "b": "n_mrjxrymx45",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrymx45::n_mrjxrzde47": {
+      "id": "n_mrjxrymx45::n_mrjxrzde47",
+      "a": "n_mrjxrymx45",
+      "b": "n_mrjxrzde47",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrzde47::n_mrjxs23b49": {
+      "id": "n_mrjxrzde47::n_mrjxs23b49",
+      "a": "n_mrjxrzde47",
+      "b": "n_mrjxs23b49",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs23b49::n_mrjxs2wp4b": {
+      "id": "n_mrjxs23b49::n_mrjxs2wp4b",
+      "a": "n_mrjxs23b49",
+      "b": "n_mrjxs2wp4b",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs2wp4b::n_mrjxs45h4d": {
+      "id": "n_mrjxs2wp4b::n_mrjxs45h4d",
+      "a": "n_mrjxs2wp4b",
+      "b": "n_mrjxs45h4d",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs45h4d::n_mrjxs4tf4f": {
+      "id": "n_mrjxs45h4d::n_mrjxs4tf4f",
+      "a": "n_mrjxs45h4d",
+      "b": "n_mrjxs4tf4f",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs4tf4f::n_mrjxs6jm4h": {
+      "id": "n_mrjxs4tf4f::n_mrjxs6jm4h",
+      "a": "n_mrjxs4tf4f",
+      "b": "n_mrjxs6jm4h",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs6jm4h::n_mrjxs77k4j": {
+      "id": "n_mrjxs6jm4h::n_mrjxs77k4j",
+      "a": "n_mrjxs6jm4h",
+      "b": "n_mrjxs77k4j",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs77k4j::n_mrjxs92i4l": {
+      "id": "n_mrjxs77k4j::n_mrjxs92i4l",
+      "a": "n_mrjxs77k4j",
+      "b": "n_mrjxs92i4l",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxs92i4l::n_mrjxsa0h4n": {
+      "id": "n_mrjxs92i4l::n_mrjxsa0h4n",
+      "a": "n_mrjxs92i4l",
+      "b": "n_mrjxsa0h4n",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxsa0h4n::n_mrjxsbu34p": {
+      "id": "n_mrjxsa0h4n::n_mrjxsbu34p",
+      "a": "n_mrjxsa0h4n",
+      "b": "n_mrjxsbu34p",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxrlne3h::n_mrjxu8sx53": {
+      "id": "n_mrjxrlne3h::n_mrjxu8sx53",
+      "a": "n_mrjxrlne3h",
+      "b": "n_mrjxu8sx53",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxu8sx53::n_mrjxuawu55": {
+      "id": "n_mrjxu8sx53::n_mrjxuawu55",
+      "a": "n_mrjxu8sx53",
+      "b": "n_mrjxuawu55",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxuawu55::n_mrjxubx157": {
+      "id": "n_mrjxuawu55::n_mrjxubx157",
+      "a": "n_mrjxuawu55",
+      "b": "n_mrjxubx157",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxubx157::n_mrjxucm259": {
+      "id": "n_mrjxubx157::n_mrjxucm259",
+      "a": "n_mrjxubx157",
+      "b": "n_mrjxucm259",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrjxucm259::n_mrjxueay5b": {
+      "id": "n_mrjxucm259::n_mrjxueay5b",
+      "a": "n_mrjxucm259",
+      "b": "n_mrjxueay5b",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    }
+  },
+  "routes": [
+    {
+      "id": "r_mrjxmzk32j",
+      "name": "Magma Labs Dongshan Line",
+      "nodeIds": [
+        "n_mrjxmzk32l",
+        "n_mrjxn0dd2n",
+        "n_mrjxn17o2p",
+        "n_mrjxn4x62r",
+        "n_mrjxn7k92t",
+        "n_mrjxncai2v"
+      ],
+      "color": "#e6194b",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    },
+    {
+      "id": "r_mrjxny102w",
+      "name": "Industrial District Line",
+      "nodeIds": [
+        "n_mrjxny112y",
+        "n_mrjxnz4230",
+        "n_mrjxo0fa32",
+        "n_mrjxo4k334",
+        "n_mrjxo65h36"
+      ],
+      "color": "#c4c4c4",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    },
+    {
+      "id": "r_mrjxrlnd3f",
+      "name": "Line 3",
+      "nodeIds": [
+        "n_mrjxrlne3h",
+        "n_mrjxrmvk3j",
+        "n_mrjxrnkr3l",
+        "n_mrjxrp793n",
+        "n_mrjxrpzv3p",
+        "n_mrjxrr263r",
+        "n_mrjxrs4u3t",
+        "n_mrjxrsyf3v",
+        "n_mrjxrtnc3x",
+        "n_mrjxrvx43z",
+        "n_mrjxrwpf41",
+        "n_mrjxrxy643",
+        "n_mrjxrymx45",
+        "n_mrjxrzde47",
+        "n_mrjxs23b49",
+        "n_mrjxs2wp4b",
+        "n_mrjxs45h4d",
+        "n_mrjxs4tf4f",
+        "n_mrjxs6jm4h",
+        "n_mrjxs77k4j",
+        "n_mrjxs92i4l",
+        "n_mrjxsa0h4n",
+        "n_mrjxsbu34p"
+      ],
+      "color": "#4363d8",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    },
+    {
+      "id": "r_mrjxsjsy4q",
+      "name": "Line 4",
+      "nodeIds": [
+        "n_mrjxsjsy4s"
+      ],
+      "color": "#f58231",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    },
+    {
+      "id": "r_mrjxu2v351",
+      "name": "Line 5",
+      "nodeIds": [
+        "n_mrjxrlne3h",
+        "n_mrjxu8sx53",
+        "n_mrjxuawu55",
+        "n_mrjxubx157",
+        "n_mrjxucm259",
+        "n_mrjxueay5b"
+      ],
+      "color": "#911eb4",
+      "defaults": {
+        "width": 3,
+        "flat": false,
+        "lit": false,
+        "paved": true
+      }
+    }
+  ],
+  "stations": [
+    {
+      "id": "st_mrjxmprz2i",
+      "name": "Spawn Station",
+      "polygon": [
+        {
+          "x": -163,
+          "z": 88
+        },
+        {
+          "x": -163,
+          "z": 108
+        },
+        {
+          "x": -133,
+          "z": 140
+        },
+        {
+          "x": -119,
+          "z": 140
+        },
+        {
+          "x": -119,
+          "z": 125
+        },
+        {
+          "x": -115,
+          "z": 97
+        },
+        {
+          "x": -115,
+          "z": 83
+        },
+        {
+          "x": -126,
+          "z": 84
+        }
+      ],
+      "lineIds": [
+        "r_mrjxmzk32j"
+      ]
+    },
+    {
+      "id": "st_mrjxowu138",
+      "name": "Railway Station",
+      "polygon": [
+        {
+          "x": -750,
+          "z": 0
+        },
+        {
+          "x": -750,
+          "z": 18
+        },
+        {
+          "x": -743,
+          "z": 30
+        },
+        {
+          "x": -738,
+          "z": 17
+        },
+        {
+          "x": -737,
+          "z": -1
+        },
+        {
+          "x": -744,
+          "z": -8
+        }
+      ],
+      "lineIds": [
+        "r_mrjxny102w"
+      ]
+    },
+    {
+      "id": "st_mrjxpjtg3a",
+      "name": "Railway Station",
+      "polygon": [
+        {
+          "x": -726,
+          "z": 209
+        },
+        {
+          "x": -713,
+          "z": 209
+        },
+        {
+          "x": -713,
+          "z": 187
+        },
+        {
+          "x": -721,
+          "z": 173
+        },
+        {
+          "x": -725,
+          "z": 175
+        }
+      ],
+      "lineIds": [
+        "r_mrjxny102w"
+      ]
+    },
+    {
+      "id": "st_mrjxq8523c",
+      "name": "Norfolk Union Station",
+      "polygon": [
+        {
+          "x": -470,
+          "z": -3
+        },
+        {
+          "x": -450,
+          "z": -3
+        },
+        {
+          "x": -450,
+          "z": -64
+        },
+        {
+          "x": -454,
+          "z": -70
+        },
+        {
+          "x": -462,
+          "z": -70
+        },
+        {
+          "x": -470,
+          "z": -62
+        },
+        {
+          "x": -470,
+          "z": -2
+        }
+      ],
+      "lineIds": []
+    },
+    {
+      "id": "st_mrjxqrh93e",
+      "name": "Norfolk South Railway Station",
+      "polygon": [
+        {
+          "x": -481,
+          "z": 127
+        },
+        {
+          "x": -464,
+          "z": 141
+        },
+        {
+          "x": -430,
+          "z": 142
+        },
+        {
+          "x": -407,
+          "z": 127
+        },
+        {
+          "x": -482,
+          "z": 127
+        }
+      ],
+      "lineIds": [
+        "r_mrjxmzk32j"
+      ]
+    },
+    {
+      "id": "st_mrjxt9ts4w",
+      "name": "Station 6",
+      "polygon": [
+        {
+          "x": -1490,
+          "z": -79
+        },
+        {
+          "x": -1489,
+          "z": -56
+        },
+        {
+          "x": -1478,
+          "z": -56
+        },
+        {
+          "x": -1479,
+          "z": -79
+        },
+        {
+          "x": -1490,
+          "z": -78
+        }
+      ],
+      "lineIds": [
+        "r_mrjxrlnd3f"
+      ]
+    },
+    {
+      "id": "st_mrjxtnr24y",
+      "name": "Station 7",
+      "polygon": [
+        {
+          "x": -1289,
+          "z": -40
+        },
+        {
+          "x": -1289,
+          "z": -29
+        },
+        {
+          "x": -1272,
+          "z": -30
+        },
+        {
+          "x": -1271,
+          "z": -40
+        },
+        {
+          "x": -1289,
+          "z": -40
+        }
+      ],
+      "lineIds": [
+        "r_mrjxrlnd3f"
+      ]
+    },
+    {
+      "id": "st_mrjxtuqx50",
+      "name": "Station 8",
+      "polygon": [
+        {
+          "x": -1071,
+          "z": -77
+        },
+        {
+          "x": -1072,
+          "z": -66
+        },
+        {
+          "x": -1051,
+          "z": -66
+        },
+        {
+          "x": -1051,
+          "z": -77
+        }
+      ],
+      "lineIds": [
+        "r_mrjxrlnd3f"
+      ]
+    },
+    {
+      "id": "st_mrjxutgy5d",
+      "name": "Station 9",
+      "polygon": [
+        {
+          "x": -737,
+          "z": -337
+        },
+        {
+          "x": -737,
+          "z": -318
+        },
+        {
+          "x": -725,
+          "z": -319
+        },
+        {
+          "x": -724,
+          "z": -337
+        },
+        {
+          "x": -738,
+          "z": -337
+        }
+      ],
+      "lineIds": [
+        "r_mrjxu2v351"
+      ]
+    },
+    {
+      "id": "st_mrjxva3g5f",
+      "name": "Station 10",
+      "polygon": [
+        {
+          "x": -736,
+          "z": -78
+        },
+        {
+          "x": -739,
+          "z": -66
+        },
+        {
+          "x": -740,
+          "z": -63
+        },
+        {
+          "x": -738,
+          "z": -63
+        },
+        {
+          "x": -738,
+          "z": -46
+        },
+        {
+          "x": -743,
+          "z": -45
+        },
+        {
+          "x": -744,
+          "z": -39
+        },
+        {
+          "x": -726,
+          "z": -39
+        },
+        {
+          "x": -726,
+          "z": -79
+        }
+      ],
+      "lineIds": [
+        "r_mrjxrlnd3f",
+        "r_mrjxu2v351"
+      ]
+    },
+    {
+      "id": "st_mrjy0ivk5j",
+      "name": "Station 11",
+      "polygon": [
+        {
+          "x": -306,
+          "z": 617
+        },
+        {
+          "x": -307,
+          "z": 648
+        },
+        {
+          "x": -279,
+          "z": 648
+        },
+        {
+          "x": -279,
+          "z": 617
+        }
+      ],
+      "lineIds": []
+    }
+  ]
 }

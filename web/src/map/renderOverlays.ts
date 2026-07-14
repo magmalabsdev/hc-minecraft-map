@@ -8,6 +8,7 @@ import {
   type Route,
   type Station,
   type Vec2,
+  disruptionTypeLabel,
   resolveSegment,
 } from "@hcmap/shared";
 import type { LineKind } from "../data/useOverlays";
@@ -47,8 +48,20 @@ function midDivIcon(): L.DivIcon {
   });
 }
 
-const DISRUPTION_COLOR = "#ff8c1a";
 const SELECT_COLOR = "#ffffff";
+
+/**
+ * Automatic road colour by width (blocks): 0 crimson, 1 red, 2 orange, 3 yellow,
+ * 4–5 green, 6+ blue.
+ */
+function widthColor(w: number): string {
+  if (w <= 0) return "#dc143c"; // crimson
+  if (w === 1) return "#ff2d2d"; // red
+  if (w === 2) return "#ff7f0e"; // orange
+  if (w === 3) return "#ffd21e"; // yellow
+  if (w <= 5) return "#3ec46d"; // green
+  return "#3b82f6"; // blue
+}
 
 export interface OverlayToggles {
   highway: boolean;
@@ -165,32 +178,56 @@ function pushNetwork(
     const a = nodeLatLng(net, seg.a);
     const b = nodeLatLng(net, seg.b);
     if (!a || !b) continue;
-    const { props, disrupted, note } = resolveSegment(seg);
+    const { props, disrupted, type, note } = resolveSegment(seg);
     const selected = isSelected(edit.selection, "segment", seg.id);
-    const color = disrupted
-      ? DISRUPTION_COLOR
-      : selected
-        ? SELECT_COLOR
-        : (segColor.get(seg.id) ?? (rail ? "#888" : "#cfcfcf"));
+    const paved = props.paved;
+
+    // Roads keep their width-based colour (rail keeps its line colour) even when
+    // disrupted; the disruption shows as black stripes laid over the road.
+    const color = selected
+      ? SELECT_COLOR
+      : rail
+        ? (segColor.get(seg.id) ?? "#888")
+        : widthColor(props.width);
+
+    const weight = widthToWeight(props.width, opts.pixelsPerBlock) + (selected ? 2 : 0);
+    // Unpaved roads render dashed (dirt track); paved solid. Rail always ties.
+    const dashArray = rail ? "3 7" : !paved ? "6 7" : undefined;
+
     const line = L.polyline([a, b], {
       color,
-      weight: widthToWeight(props.width, opts.pixelsPerBlock) + (disrupted || selected ? 2 : 0),
-      opacity: props.lit ? 1 : 0.85,
-      dashArray: rail ? "3 7" : props.flat ? undefined : "8 6",
-      lineCap: "round",
+      weight,
+      opacity: props.lit ? 1 : 0.9,
+      dashArray,
+      lineCap: paved || rail ? "round" : "butt",
     });
     const parts = [
       `${props.width} wide`,
+      paved ? "paved" : "unpaved",
       props.flat ? "flat" : "sloped",
       props.lit ? "lit" : "unlit",
     ];
-    if (disrupted) parts.push(`⚠ disrupted${note ? `: ${note}` : ""}`);
+    if (disrupted) parts.push(`⚠ ${disruptionTypeLabel(type)}${note ? `: ${note}` : ""}`);
     line.bindTooltip(parts.join(" · "), { sticky: true });
     line.on("click", (e) => {
       L.DomEvent.stop(e);
       handlers.onSelect({ type: "segment", net: kind, id: seg.id });
     });
     layers.push(line);
+
+    // Disruption marker: black stripes over the full road width.
+    if (disrupted) {
+      layers.push(
+        L.polyline([a, b], {
+          color: "#000000",
+          weight,
+          opacity: 0.9,
+          dashArray: "8 12",
+          lineCap: "butt",
+          interactive: false,
+        }),
+      );
+    }
 
     // lit centre line accent
     if (props.lit && !disrupted) {

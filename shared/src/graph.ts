@@ -1,4 +1,5 @@
 import type {
+  DisruptionType,
   HighwayNetwork,
   Id,
   Node,
@@ -41,11 +42,17 @@ export function getRouteSegments(route: Route, network: Network): Segment[] {
 export function resolveSegment(seg: Segment): {
   props: SegmentProps;
   disrupted: boolean;
+  type?: DisruptionType;
   note?: string;
 } {
+  // Legacy data may lack `paved`; treat missing as paved.
+  const paved = seg.paved ?? true;
   const d = seg.disruption;
   if (!d || !d.active) {
-    return { props: { width: seg.width, flat: seg.flat, lit: seg.lit }, disrupted: false };
+    return {
+      props: { width: seg.width, flat: seg.flat, lit: seg.lit, paved },
+      disrupted: false,
+    };
   }
   // An active disruption always marks the segment; any provided fields override
   // the standard values (undefined fields keep the standard).
@@ -53,8 +60,9 @@ export function resolveSegment(seg: Segment): {
     width: d.width ?? seg.width,
     flat: d.flat ?? seg.flat,
     lit: d.lit ?? seg.lit,
+    paved: d.paved ?? paved,
   };
-  return { props, disrupted: true, note: d.note };
+  return { props, disrupted: true, type: d.type ?? "other", note: d.note };
 }
 
 /** Adjacency map: node id -> set of neighbouring node ids (whole network). */

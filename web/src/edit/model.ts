@@ -49,7 +49,22 @@ export interface EditState {
   selection: Selection;
 }
 
-export const DEFAULT_SEGMENT: SegmentProps = { width: 3, flat: false, lit: false };
+export const DEFAULT_SEGMENT: SegmentProps = {
+  width: 3,
+  flat: false,
+  lit: false,
+  paved: true,
+};
+
+/**
+ * Migrate a loaded network in place: existing roads/tracks default to paved
+ * (the `paved` field was added later). Preserves all other data.
+ */
+export function migrateNetworkPaved(net: Network): void {
+  for (const seg of Object.values(net.segments)) {
+    if (seg.paved === undefined) seg.paved = true;
+  }
+}
 
 const ROUTE_COLORS = [
   "#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4",
@@ -143,7 +158,12 @@ export function insertNodeInSegment(
       }
     }
   }
-  const props: SegmentProps = { width: seg.width, flat: seg.flat, lit: seg.lit };
+  const props: SegmentProps = {
+    width: seg.width,
+    flat: seg.flat,
+    lit: seg.lit,
+    paved: seg.paved ?? true,
+  };
   const s1 = ensureSegment(net, a, nid, props);
   const s2 = ensureSegment(net, nid, b, props);
   if (seg.disruption) {
