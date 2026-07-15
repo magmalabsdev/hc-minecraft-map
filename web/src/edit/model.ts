@@ -77,16 +77,18 @@ export function newId(prefix: string): Id {
   return `${prefix}_${Date.now().toString(36)}${counter.toString(36)}`;
 }
 
-/** Nearest existing node within `tol` blocks, or null. */
+/** Nearest existing node within `tol` blocks (excluding `excludeId`), or null. */
 export function findNodeNear(
   net: Network,
   x: number,
   z: number,
   tol: number,
+  excludeId?: Id,
 ): Id | null {
   let best: Id | null = null;
   let bestD = tol;
   for (const [id, n] of Object.entries(net.nodes)) {
+    if (id === excludeId) continue;
     const d = Math.hypot(n.x - x, n.z - z);
     if (d <= bestD) {
       bestD = d;
@@ -190,6 +192,29 @@ export function deleteNodeFromNetwork(net: Network, nodeId: Id): void {
   }
   pruneSegments(net);
   delete net.nodes[nodeId];
+  removeOrphanNodes(net);
+}
+
+/**
+ * Merge `fromId` into `toId`: every route that visited `fromId` now visits
+ * `toId` instead (collapsing any resulting consecutive duplicates), segments
+ * are rebuilt to match, and `fromId` is dropped. Used when a dragged node is
+ * released on top of another node, forming an intersection.
+ */
+export function mergeNodes(net: Network, fromId: Id, toId: Id): void {
+  if (fromId === toId || !net.nodes[fromId] || !net.nodes[toId]) return;
+  for (const route of net.routes) {
+    const merged = route.nodeIds.map((id) => (id === fromId ? toId : id));
+    route.nodeIds = merged.filter((id, i) => i === 0 || id !== merged[i - 1]);
+  }
+  net.routes = net.routes.filter((r) => r.nodeIds.length >= 2);
+  for (const route of net.routes) {
+    for (let i = 0; i + 1 < route.nodeIds.length; i++) {
+      ensureSegment(net, route.nodeIds[i], route.nodeIds[i + 1], route.defaults);
+    }
+  }
+  pruneSegments(net);
+  delete net.nodes[fromId];
   removeOrphanNodes(net);
 }
 

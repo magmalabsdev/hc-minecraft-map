@@ -5,6 +5,7 @@ import {
   type RailwayNetwork,
   type Vec2,
   nodeDistance,
+  resolveSegment,
 } from "@hcmap/shared";
 import type { Network } from "../edit/model";
 import type { HeightField } from "./heightField";
@@ -42,10 +43,23 @@ function landmarkPos(lm: Landmark): Vec2 | null {
   return null;
 }
 
-function nearestNode(net: Network, p: Vec2): Id | null {
+/** Nodes touching at least one segment that isn't width-0 (not built yet /
+ *  nonfunctional) — the only nodes route-finding may use as an anchor. */
+function functionalNodeIds(net: Network): Set<Id> {
+  const ids = new Set<Id>();
+  for (const seg of Object.values(net.segments)) {
+    if (resolveSegment(seg).props.width <= 0) continue;
+    ids.add(seg.a);
+    ids.add(seg.b);
+  }
+  return ids;
+}
+
+function nearestNode(net: Network, p: Vec2, allowed: Set<Id>): Id | null {
   let best: Id | null = null;
   let bestD = Infinity;
   for (const [id, n] of Object.entries(net.nodes)) {
+    if (!allowed.has(id)) continue;
     const d = Math.hypot(n.x - p.x, n.z - p.z);
     if (d < bestD) {
       bestD = d;
@@ -55,7 +69,8 @@ function nearestNode(net: Network, p: Vec2): Id | null {
   return best;
 }
 
-/** Dijkstra shortest path over the shared segment graph (edge weight = length). */
+/** Dijkstra shortest path over the shared segment graph (edge weight = length).
+ *  Width-0 segments (not built yet / nonfunctional) are excluded entirely. */
 function shortestPath(net: Network, start: Id, goal: Id): Id[] | null {
   const adj = new Map<Id, { to: Id; w: number }[]>();
   const link = (from: Id, to: Id, w: number) => {
@@ -64,6 +79,7 @@ function shortestPath(net: Network, start: Id, goal: Id): Id[] | null {
     list.push({ to, w });
   };
   for (const seg of Object.values(net.segments)) {
+    if (resolveSegment(seg).props.width <= 0) continue;
     const a = net.nodes[seg.a];
     const b = net.nodes[seg.b];
     if (!a || !b) continue;
@@ -179,14 +195,15 @@ export function computeRoute(
   if (!a || !b) return base({ message: "Landmarks need a position." });
 
   const net: Network = mode === "rail" ? ctx.railways : ctx.highways;
-  if (Object.keys(net.nodes).length === 0) {
+  const functional = functionalNodeIds(net);
+  if (functional.size === 0) {
     return base({
       message: `No ${mode === "rail" ? "railway" : "highway"} network drawn yet.`,
     });
   }
 
-  const startNode = nearestNode(net, a);
-  const endNode = nearestNode(net, b);
+  const startNode = nearestNode(net, a, functional);
+  const endNode = nearestNode(net, b, functional);
   if (!startNode || !endNode) return base({ message: "No reachable network node." });
 
   let points: Vec2[];

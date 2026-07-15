@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type HighwayNetwork,
   type LandmarkCollection,
@@ -134,16 +134,22 @@ export function useOverlays(): Overlays {
     );
   }, [save]);
 
-  return {
-    highways,
-    railways,
-    landmarks,
-    loaded,
-    dirty,
-    network,
-    updateNetwork,
-    updateLandmarks,
-    save,
-    saveAll,
-  };
+  // Stable reference across unrelated re-renders (e.g. cursor tracking on every
+  // mousemove) — MapView rebuilds all edit-mode markers whenever this object
+  // changes identity, which would tear down a marker mid-drag otherwise.
+  return useMemo(
+    () => ({
+      highways,
+      railways,
+      landmarks,
+      loaded,
+      dirty,
+      network,
+      updateNetwork,
+      updateLandmarks,
+      save,
+      saveAll,
+    }),
+    [highways, railways, landmarks, loaded, dirty, network, updateNetwork, updateLandmarks, save, saveAll],
+  );
 }

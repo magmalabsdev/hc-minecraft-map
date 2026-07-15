@@ -257,11 +257,14 @@ function pushNetwork(
     const weight = widthToWeight(props.width, opts.pixelsPerBlock) + (selected ? 2 : 0);
     // Unpaved roads render dashed (dirt track); paved solid. Rail always ties.
     const dashArray = rail ? "3 7" : !paved ? "6 7" : undefined;
+    // Width 0 means "not built yet / nonfunctional" — fade it out instead of
+    // drawing it like a real road/track.
+    const ghost = props.width <= 0;
 
     const line = L.polyline([a, b], {
       color,
       weight,
-      opacity: props.lit ? 1 : 0.9,
+      opacity: ghost ? 0.15 : props.lit ? 1 : 0.9,
       dashArray,
       lineCap: paved || rail ? "round" : "butt",
     });
@@ -296,7 +299,7 @@ function pushNetwork(
     layers.push(line);
 
     // Disruption marker: black stripes over the full road width.
-    if (disrupted) {
+    if (disrupted && !ghost) {
       layers.push(
         L.polyline([a, b], {
           color: "#000000",
@@ -310,7 +313,7 @@ function pushNetwork(
     }
 
     // lit centre line accent
-    if (props.lit && !disrupted) {
+    if (props.lit && !disrupted && !ghost) {
       layers.push(
         L.polyline([a, b], {
           color: "#ffe27a",
@@ -359,9 +362,10 @@ function pushNetwork(
         zIndexOffset: -50,
         opacity: 0.85,
       });
+      // A plain click (no drag) inserts a new node right at the midpoint.
       mid.on("click", (e) => {
         L.DomEvent.stop(e);
-        handlers.onSelect({ type: "segment", net: kind, id: segId });
+        handlers.onInsertNode(kind, segId, mx, mz);
       });
       mid.on("drag", snapMarkerToBlock);
       mid.on("dragend", (e) => {
@@ -428,13 +432,20 @@ function pushPolygonEditor(
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i];
     const b = poly[(i + 1) % poly.length];
-    const mid = L.marker(blockToLatLng((a.x + b.x) / 2, (a.z + b.z) / 2), {
+    const mx = (a.x + b.x) / 2;
+    const mz = (a.z + b.z) / 2;
+    const mid = L.marker(blockToLatLng(mx, mz), {
       draggable: true,
       icon: midDivIcon(),
       zIndexOffset: -50,
       opacity: 0.85,
     });
     const edge = i;
+    // A plain click (no drag) inserts a new vertex right at the midpoint.
+    mid.on("click", (e) => {
+      L.DomEvent.stop(e);
+      opts.handlers.onInsertPolyVertex(target, edge, mx, mz);
+    });
     mid.on("drag", snapMarkerToBlock);
     mid.on("dragend", (e) => {
       const ll = (e.target as L.Marker).getLatLng();

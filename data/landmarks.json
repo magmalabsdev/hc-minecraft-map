@@ -247,16 +247,52 @@
           "z": -145
         },
         {
-          "x": -514,
+          "x": -515,
           "z": -143
         },
         {
           "x": -515,
-          "z": -55
+          "z": -156
         },
         {
-          "x": -533,
-          "z": -39
+          "x": -539,
+          "z": -150
+        },
+        {
+          "x": -546,
+          "z": -135
+        },
+        {
+          "x": -554,
+          "z": -130
+        },
+        {
+          "x": -573,
+          "z": -103
+        },
+        {
+          "x": -582,
+          "z": -100
+        },
+        {
+          "x": -590,
+          "z": -87
+        },
+        {
+          "x": -595,
+          "z": -87
+        },
+        {
+          "x": -643,
+          "z": -56
+        },
+        {
+          "x": -643,
+          "z": 4
+        },
+        {
+          "x": -532,
+          "z": 4
         },
         {
           "x": -532,
@@ -835,6 +871,64 @@
       "color": "#4a90d9",
       "shape": "polygon",
       "icon": "iron_ingot"
+    },
+    {
+      "id": "l_mrke1ldb9",
+      "name": "Lodestone HQ",
+      "polygon": [
+        {
+          "x": 473,
+          "z": -27
+        },
+        {
+          "x": 473,
+          "z": 28
+        },
+        {
+          "x": 528,
+          "z": 28
+        },
+        {
+          "x": 528,
+          "z": -27
+        }
+      ],
+      "color": "#4a90d9",
+      "shape": "polygon",
+      "icon": "lodestone"
+    },
+    {
+      "id": "l_mrlciet7b",
+      "name": "Resource Outpost \"Shipwrecked\"",
+      "point": {
+        "x": 532,
+        "z": 346
+      },
+      "color": "#e8c14a",
+      "shape": "marker",
+      "icon": "crafting_table"
+    },
+    {
+      "id": "l_mrlciz6hd",
+      "name": "Resource Outpost \"Counterspell\"",
+      "point": {
+        "x": 257,
+        "z": 523
+      },
+      "color": "#e8c14a",
+      "shape": "marker",
+      "icon": "crafting_table"
+    },
+    {
+      "id": "l_mrlcm47pf",
+      "name": "Amethyst Outpost",
+      "point": {
+        "x": 129,
+        "z": 16
+      },
+      "color": "#e8c14a",
+      "shape": "marker",
+      "icon": "crafting_table"
     }
   ]
 }

@@ -26,9 +26,11 @@ import {
   createRoute,
   deleteNodeFromNetwork,
   deletePolyVertex,
+  deleteRoute,
   findNodeNear,
   insertNodeInSegment,
   insertPolyVertex,
+  mergeNodes,
   moveNode,
   movePolyVertex,
   newId,
@@ -173,9 +175,26 @@ export default function App() {
         }
         setEdit((e) => ({ ...e, selection: sel }));
       },
-      onMoveNode: (net, nodeId, x, z) =>
-        overlays.updateNetwork(net, (n) => moveNode(n, nodeId, x, z)),
+      onMoveNode: (net, nodeId, x, z) => {
+        let landedOn: string | null = null;
+        overlays.updateNetwork(net, (n) => {
+          const near = findNodeNear(n, x, z, SNAP_TOL, nodeId);
+          if (near) {
+            mergeNodes(n, nodeId, near);
+            landedOn = near;
+          } else {
+            moveNode(n, nodeId, x, z);
+          }
+        });
+        // Dragging onto another node merges the two into one intersection —
+        // keep the surviving node selected instead of the one that vanished.
+        if (landedOn) setEdit((e) => ({ ...e, selection: { type: "node", net, id: landedOn! } }));
+      },
       onInsertNode: (net, segId, x, z) => {
+        // No snap-to-existing-node here: the new node sits halfway along the
+        // segment it splits, so on any segment shorter than 2*SNAP_TOL it would
+        // always land within range of the endpoint it just split off from and
+        // immediately merge back into it, silently undoing the insert.
         let nid = "";
         overlays.updateNetwork(net, (n) => {
           nid = insertNodeInSegment(n, segId, x, z);
@@ -192,7 +211,7 @@ export default function App() {
     [edit, overlays, applyPolyTarget],
   );
 
-  // Delete key removes the selected point or polygon vertex.
+  // Delete key removes the selected point, polygon vertex, or whole route.
   useEffect(() => {
     if (!edit.enabled) return;
     const onKey = (ev: KeyboardEvent) => {
@@ -208,6 +227,10 @@ export default function App() {
       } else if (sel.type === "vertex") {
         ev.preventDefault();
         applyPolyTarget(sel.target, (poly) => deletePolyVertex(poly, sel.index));
+        setEdit((e) => ({ ...e, selection: null }));
+      } else if (sel.type === "route") {
+        ev.preventDefault();
+        overlays.updateNetwork(sel.net, (n) => deleteRoute(n, sel.id));
         setEdit((e) => ({ ...e, selection: null }));
       }
     };
