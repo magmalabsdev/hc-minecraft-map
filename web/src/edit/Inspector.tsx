@@ -5,6 +5,7 @@ import {
   type Id,
   type Landmark,
   type LandmarkShape,
+  type RailwayNetwork,
   type Route,
   type Segment,
   type Station,
@@ -13,6 +14,7 @@ import {
 } from "@hcmap/shared";
 import { MINECRAFT_ICONS, MINECRAFT_ICON_IDS } from "../icons/minecraftIcons";
 import type { LineKind, Overlays } from "../data/useOverlays";
+import { RouteMapDialog } from "./RouteMapDialog";
 import {
   type EditState,
   type PolyTarget,
@@ -206,6 +208,7 @@ function RouteSection(p: {
   setEdit: (fn: (e: EditState) => EditState) => void;
   clear: () => void;
 }) {
+  const [showRouteMap, setShowRouteMap] = useState(false);
   const net = p.overlays.network(p.net);
   const route = net.routes.find((r) => r.id === p.routeId);
   if (!route) return null;
@@ -216,6 +219,7 @@ function RouteSection(p: {
   const uFlat = routeSegmentsUniform(net, route, (s) => s.flat);
   const uLit = routeSegmentsUniform(net, route, (s) => s.lit);
   const uPaved = routeSegmentsUniform(net, route, (s) => s.paved ?? true);
+  const uBuilt = routeSegmentsUniform(net, route, (s) => s.built ?? true);
   const setIndet = (mixed: boolean) => (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = mixed;
   };
@@ -314,6 +318,23 @@ function RouteSection(p: {
             />
             Paved
           </label>
+          {p.net === "railway" && (
+            <label className="check">
+              <input
+                type="checkbox"
+                ref={setIndet(uBuilt === undefined)}
+                checked={uBuilt ?? true}
+                onChange={(e) => {
+                  batch((s) => (s.built = e.target.checked));
+                  patch((r) => (r.defaults.built = e.target.checked));
+                }}
+              />
+              Built
+            </label>
+          )}
+          {uBuilt === false && (
+            <p className="hint">🚧 Planned — hidden from the main map until built.</p>
+          )}
           <div className="row-buttons" style={{ marginTop: 6 }}>
             <button onClick={() => batch((s) => (s.disruption = { ...(s.disruption ?? {}), active: true }))}>
               Disrupt all
@@ -346,7 +367,15 @@ function RouteSection(p: {
               Delete
             </button>
           </div>
+          {p.net === "railway" && (
+            <div className="row-buttons">
+              <button onClick={() => setShowRouteMap(true)}>Generate route map</button>
+            </div>
+          )}
         </>
+      )}
+      {showRouteMap && p.net === "railway" && (
+        <RouteMapDialog route={route} net={net as RailwayNetwork} onClose={() => setShowRouteMap(false)} />
       )}
     </div>
   );
@@ -391,6 +420,17 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
         />
         Paved
       </label>
+      {p.net === "railway" && (
+        <label className="check">
+          <input
+            type="checkbox"
+            disabled={!p.editable}
+            checked={seg.built ?? true}
+            onChange={(e) => patch((s) => (s.built = e.target.checked))}
+          />
+          Built
+        </label>
+      )}
 
       <div className="disruption-box">
         <label className="check">
@@ -518,16 +558,33 @@ function StationPanel(p: { overlays: Overlays; id: Id; editable: boolean; clear:
         Name
         <input disabled={!p.editable} value={st.name} onChange={(e) => patch((s) => (s.name = e.target.value))} />
       </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          disabled={!p.editable}
+          checked={st.built ?? true}
+          onChange={(e) => patch((s) => (s.built = e.target.checked))}
+        />
+        Built
+      </label>
+      {st.built === false && (
+        <p className="hint">🚧 Planned footprint — hidden from the main map until built.</p>
+      )}
       <label className="section-label" style={{ marginTop: 6 }}>
         Serves lines
       </label>
+      <p className="hint">A line doesn't need to be built yet to be listed here.</p>
       {net.routes.length === 0 && <p className="hint">Draw a rail line first.</p>}
-      {net.routes.map((line) => (
-        <label className="check" key={line.id}>
-          <input type="checkbox" disabled={!p.editable} checked={st.lineIds.includes(line.id)} onChange={(e) => toggleLine(line.id, e.target.checked)} />
-          <span style={{ color: line.color }}>■</span> {line.name}
-        </label>
-      ))}
+      {net.routes.map((line) => {
+        const linePlanned = routeSegmentsUniform(net, line, (s) => s.built ?? true) === false;
+        return (
+          <label className="check" key={line.id}>
+            <input type="checkbox" disabled={!p.editable} checked={st.lineIds.includes(line.id)} onChange={(e) => toggleLine(line.id, e.target.checked)} />
+            <span style={{ color: line.color }}>■</span> {line.name}
+            {linePlanned && " (planned)"}
+          </label>
+        );
+      })}
       {p.editable && (
         <>
           <p className="hint">Drag a vertex to reshape, or a midpoint to add one.</p>

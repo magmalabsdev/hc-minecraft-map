@@ -558,3 +558,55 @@ button.danger {
   image-rendering: pixelated;
   display: block;
 }
+
+/* --- route map dialog --- */
+.route-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(8, 9, 11, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.route-map-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 16px;
+}
+.route-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.route-map-header h3 {
+  margin: 0;
+  padding-right: 24px;
+  font-size: 14px;
+}
+.route-map-preview {
+  display: grid;
+  place-items: center;
+  min-height: 60px;
+  margin-bottom: 10px;
+  overflow: auto;
+}
+.route-map-canvas {
+  image-rendering: pixelated;
+  border: 1px solid var(--border);
+  max-width: 100%;
+  /* Only inline `width` is set on this element — `height: auto` derives the
+     proportional height from its intrinsic width/height attributes, so it
+     never distorts even when `max-width` shrinks the displayed width. */
+  height: auto;
+  display: block;
+}

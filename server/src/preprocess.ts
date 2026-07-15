@@ -36,6 +36,49 @@ export interface MirrorResult {
 const SEA_LEVEL = 63;
 const PAPER: [number, number, number] = [216, 211, 198];
 
+/**
+ * Resistor color-code palette (0-9: Black, Brown, Red, Orange, Yellow, Green,
+ * Blue, Violet, Grey, White), pre-blended into light/dark variants so the
+ * "true" Terrain 2D background can read a block's elevation the way a
+ * resistor's bands read a two-digit number: the tens digit of Y picks the
+ * hue, the ones digit picks light (0-4) vs dark (5-9).
+ */
+const RESISTOR_BASE: [number, number, number][] = [
+  [26, 26, 26], // 0 black
+  [123, 63, 0], // 1 brown
+  [211, 47, 47], // 2 red
+  [230, 126, 34], // 3 orange
+  [241, 196, 15], // 4 yellow
+  [46, 125, 50], // 5 green
+  [21, 101, 192], // 6 blue
+  [123, 31, 162], // 7 violet
+  [117, 117, 117], // 8 grey
+  [245, 245, 245], // 9 white
+];
+
+function mix(
+  c: [number, number, number],
+  target: [number, number, number],
+  t: number,
+): [number, number, number] {
+  return [
+    Math.round(c[0] + (target[0] - c[0]) * t),
+    Math.round(c[1] + (target[1] - c[1]) * t),
+    Math.round(c[2] + (target[2] - c[2]) * t),
+  ];
+}
+
+const RESISTOR_LIGHT = RESISTOR_BASE.map((c) => mix(c, [255, 255, 255], 0.4));
+const RESISTOR_DARK = RESISTOR_BASE.map((c) => mix(c, [0, 0, 0], 0.35));
+
+/** Elevation -> resistor-band color. Continuous across negative Y via floored digits. */
+function bandColor(h: number): [number, number, number] {
+  const y = Math.floor(h);
+  const tens = (((Math.floor(y / 10) % 10) + 10) % 10);
+  const ones = (((y % 10) + 10) % 10);
+  return ones < 5 ? RESISTOR_LIGHT[tens] : RESISTOR_DARK[tens];
+}
+
 function tileUrl(dim: Dimension, lod: number, tx: number, tz: number): string {
   return `${UPSTREAM}/maps/${dim}/tiles/${lod}/x${tx}/z${tz}.png`;
 }
@@ -102,6 +145,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   const dimDir = path.join(SNAPSHOT_DIR, dim);
   await fs.mkdir(path.join(dimDir, "terrain"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "minimal"), { recursive: true });
+  await fs.mkdir(path.join(dimDir, "bands"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "derived"), { recursive: true });
 
   const tileCoords: { tx: number; tz: number }[] = [];
@@ -127,6 +171,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
 
     const colorPng = new PNG({ width: S, height: S });
     const minimal = new PNG({ width: S, height: S });
+    const bands = new PNG({ width: S, height: S });
 
     for (let pz = 0; pz < S; pz++) {
       for (let px = 0; px < S; px++) {
@@ -142,6 +187,13 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
         colorPng.data[oi + 1] = data[ci + 1];
         colorPng.data[oi + 2] = data[ci + 2];
         colorPng.data[oi + 3] = data[ci + 3];
+
+        // resistor-code elevation band output
+        const [br, bg, bb] = bandColor(h);
+        bands.data[oi] = br;
+        bands.data[oi + 1] = bg;
+        bands.data[oi + 2] = bb;
+        bands.data[oi + 3] = data[ci + 3];
 
         // hillshade from the +x / +z neighbours (overlap row/col covers edges)
         const hx = decodeHeight(
@@ -173,6 +225,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
     }
     await writeTile(dimDir, "terrain", 0, tx, tz, colorPng);
     await writeTile(dimDir, "minimal", 0, tx, tz, minimal);
+    await writeTile(dimDir, "bands", 0, tx, tz, bands);
     written++;
   });
 
@@ -182,6 +235,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   const maxLevel = Math.min(6, Math.ceil(Math.log2(Math.max(1, spanX, spanZ))));
   const bounds = { xMin: txMin, xMax: txMax, yMin: tzMin, yMax: tzMax };
   await generateOverviews(dimDir, "terrain", bounds, maxLevel);
+  await generateOverviews(dimDir, "bands", bounds, maxLevel);
   const minNativeZoom = await generateOverviews(dimDir, "minimal", bounds, maxLevel);
 
   // --- contours ---
@@ -229,7 +283,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   };
 }
 
-type TileKind = "terrain" | "minimal";
+type TileKind = "terrain" | "minimal" | "bands";
 
 async function writeTile(
   dimDir: string,

@@ -32,7 +32,7 @@ import {
   snapshotTileUrlTemplate,
 } from "../api";
 
-export type BaseMode = "terrain2d" | "minimal2d";
+export type BaseMode = "landscape2d" | "contour2d" | "minimal2d";
 
 export interface MapViewProps {
   dimension: Dimension;
@@ -57,7 +57,9 @@ export interface MapViewProps {
 const SPAWN = { x: -182, z: 27 };
 
 function baseVariant(mode: BaseMode): BaseVariant {
-  return mode === "minimal2d" ? "minimal" : "terrain";
+  if (mode === "minimal2d") return "minimal";
+  if (mode === "contour2d") return "bands";
+  return "terrain";
 }
 
 export function MapView(props: MapViewProps) {
@@ -153,7 +155,12 @@ export function MapView(props: MapViewProps) {
         updateWhenZooming: false,
         errorTileUrl:
           "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-        className: baseMode === "minimal2d" ? "base-minimal" : "base-terrain",
+        className:
+          baseMode === "minimal2d"
+            ? "base-minimal"
+            : baseMode === "contour2d"
+              ? "base-bands"
+              : "base-terrain",
       });
       layer.addTo(map);
       layer.bringToBack();
@@ -167,6 +174,11 @@ export function MapView(props: MapViewProps) {
   }, [dimension, baseMode]);
 
   // --- contour overlay ---
+  // "contour2d" is the true Terrain 2D mode: its whole background is derived
+  // from elevation (resistor-color bands), so contour lines are intrinsic to
+  // it and only the major lines (every 5th, matching the bold weight below)
+  // are drawn — the minor lines would just clutter a background that already
+  // encodes elevation via color.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -174,16 +186,18 @@ export function MapView(props: MapViewProps) {
       contourRef.current.remove();
       contourRef.current = null;
     }
-    if (!showContours) return;
+    const majorOnly = baseMode === "contour2d";
+    if (!showContours && !majorOnly) return;
     let cancelled = false;
     void fetchJSON<GeoJSON.FeatureCollection>(contoursUrl(dimension)).then((geo) => {
       if (cancelled || !geo || !mapRef.current) return;
       const layer = L.geoJSON(geo, {
         coordsToLatLng: xzToLatLng,
+        filter: (f) => !majorOnly || (f?.properties?.value ?? 0) % 40 === 0,
         style: (f) => ({
-          color: "#5a4632",
+          color: majorOnly ? "#241b12" : "#5a4632",
           weight: (f?.properties?.value ?? 0) % 40 === 0 ? 1.1 : 0.5,
-          opacity: 0.5,
+          opacity: majorOnly ? 0.75 : 0.5,
           fill: false,
           interactive: false,
         }),
@@ -196,7 +210,7 @@ export function MapView(props: MapViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [dimension, showContours]);
+  }, [dimension, showContours, baseMode]);
 
   // --- overlays (highways / railways / landmarks + edit handles) ---
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DIMENSIONS, type Dimension } from "@hcmap/shared";
 import { MapView, type BaseMode } from "./map/MapView";
 import type { OverlayToggles, OverlayHandlers } from "./map/renderOverlays";
@@ -7,11 +7,6 @@ import { useOverlays } from "./data/useOverlays";
 import { Inspector } from "./edit/Inspector";
 import { RoutePanel } from "./route/RoutePanel";
 import type { RouteResult } from "./route/engine";
-
-// three.js is heavy; only load it when the 3D view is opened.
-const Terrain3D = lazy(() =>
-  import("./three/Terrain3D").then((m) => ({ default: m.Terrain3D })),
-);
 import {
   type ActiveLayer,
   type EditState,
@@ -34,9 +29,8 @@ import {
   moveNode,
   movePolyVertex,
   newId,
+  routesUsingSegment,
 } from "./edit/model";
-
-type RenderMode = BaseMode | "terrain3d";
 
 const SNAP_TOL = 6; // blocks — click within this of a point to connect to it
 
@@ -44,7 +38,7 @@ export default function App() {
   const overlays = useOverlays();
 
   const [dimension, setDimension] = useState<Dimension>("world");
-  const [mode, setMode] = useState<RenderMode>("terrain2d");
+  const [mode, setMode] = useState<BaseMode>("landscape2d");
   const [showContours, setShowContours] = useState(false);
   const [showLive, setShowLive] = useState(true);
   const [toggles, setToggles] = useState<OverlayToggles>({
@@ -71,9 +65,6 @@ export default function App() {
   useEffect(() => {
     void checkBackend().then(setBackend);
   }, []);
-
-  const is3d = mode === "terrain3d";
-  const baseMode: BaseMode = mode === "minimal2d" ? "minimal2d" : "terrain2d";
 
   // --- map interaction ---
   const onMapClick = useCallback(
@@ -232,6 +223,18 @@ export default function App() {
         ev.preventDefault();
         overlays.updateNetwork(sel.net, (n) => deleteRoute(n, sel.id));
         setEdit((e) => ({ ...e, selection: null }));
+      } else if (sel.type === "segment") {
+        // Finishing a route often leaves its last segment selected rather than
+        // the route itself (the closing click lands on the segment, not the
+        // route). Delete only when the segment belongs to a single route —
+        // with multiple routes sharing it, which one to delete is ambiguous,
+        // so leave that to the Inspector's per-route Delete button instead.
+        const routes = routesUsingSegment(overlays.network(sel.net), sel.id);
+        if (routes.length === 1) {
+          ev.preventDefault();
+          overlays.updateNetwork(sel.net, (n) => deleteRoute(n, routes[0].id));
+          setEdit((e) => ({ ...e, selection: null }));
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -262,29 +265,21 @@ export default function App() {
 
   return (
     <div className="app">
-      {is3d ? (
-        <Suspense
-          fallback={<div className="map-canvas placeholder">Loading 3D…</div>}
-        >
-          <Terrain3D dimension={dimension} onBack={() => setMode("terrain2d")} />
-        </Suspense>
-      ) : (
-        <MapView
-          dimension={dimension}
-          baseMode={baseMode}
-          showContours={showContours}
-          showLive={showLive}
-          backend={backend}
-          overlays={overlays}
-          toggles={toggles}
-          edit={edit}
-          overlayHandlers={overlayHandlers}
-          route={route}
-          onCursor={setCursor}
-          onMapClick={onMapClick}
-          onMapDblClick={onMapDblClick}
-        />
-      )}
+      <MapView
+        dimension={dimension}
+        baseMode={mode}
+        showContours={showContours}
+        showLive={showLive}
+        backend={backend}
+        overlays={overlays}
+        toggles={toggles}
+        edit={edit}
+        overlayHandlers={overlayHandlers}
+        route={route}
+        onCursor={setCursor}
+        onMapClick={onMapClick}
+        onMapDblClick={onMapDblClick}
+      />
 
       <div className="panel">
         <div className="panel-title">
@@ -316,10 +311,10 @@ export default function App() {
         <section>
           <label className="section-label">Map type</label>
           <div className="btn-col">
-            <button className={mode === "terrain3d" ? "active" : ""} onClick={() => setMode("terrain3d")}>
-              Terrain 3D
+            <button className={mode === "landscape2d" ? "active" : ""} onClick={() => setMode("landscape2d")}>
+              Landscape 2D
             </button>
-            <button className={mode === "terrain2d" ? "active" : ""} onClick={() => setMode("terrain2d")}>
+            <button className={mode === "contour2d" ? "active" : ""} onClick={() => setMode("contour2d")}>
               Terrain 2D
             </button>
             <button className={mode === "minimal2d" ? "active" : ""} onClick={() => setMode("minimal2d")}>
@@ -343,11 +338,16 @@ export default function App() {
             Landmarks
           </label>
           <label className="check">
-            <input type="checkbox" checked={showContours} disabled={is3d} onChange={(e) => setShowContours(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showContours || mode === "contour2d"}
+              disabled={mode === "contour2d"}
+              onChange={(e) => setShowContours(e.target.checked)}
+            />
             Contour lines
           </label>
           <label className="check">
-            <input type="checkbox" checked={showLive} disabled={is3d} onChange={(e) => setShowLive(e.target.checked)} />
+            <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />
             Live players &amp; markers
           </label>
         </section>

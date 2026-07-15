@@ -35,6 +35,12 @@ export interface SegmentProps {
   lit: boolean;
   /** Whether the road surface is paved. Missing in legacy data => treat as true. */
   paved: boolean;
+  /**
+   * Whether this has actually been built, vs. only planned. Missing => treat
+   * as true (built). Planned/unbuilt segments are hidden outside edit mode and
+   * excluded from route-finding; never overridden by a disruption.
+   */
+  built?: boolean;
 }
 
 /** The kind of disruption affecting a segment. "construction" renders specially. */
@@ -104,6 +110,12 @@ export interface Station {
   polygon: Vec2[];
   /** Rail line (route) ids this station serves. */
   lineIds: Id[];
+  /**
+   * Whether this station has actually been built, vs. only a planned footprint.
+   * Missing => treat as true (built). Planned/unbuilt stations are hidden
+   * outside edit mode.
+   */
+  built?: boolean;
 }
 
 export interface HighwayNetwork {

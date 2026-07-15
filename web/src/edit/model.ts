@@ -54,15 +54,23 @@ export const DEFAULT_SEGMENT: SegmentProps = {
   flat: false,
   lit: false,
   paved: true,
+  built: true,
 };
 
 /**
  * Migrate a loaded network in place: existing roads/tracks default to paved
- * (the `paved` field was added later). Preserves all other data.
+ * and built (the `paved` and `built` fields were added later). Preserves all
+ * other data.
  */
 export function migrateNetworkPaved(net: Network): void {
   for (const seg of Object.values(net.segments)) {
     if (seg.paved === undefined) seg.paved = true;
+    if (seg.built === undefined) seg.built = true;
+  }
+  if (net.kind === "railway") {
+    for (const st of net.stations) {
+      if (st.built === undefined) st.built = true;
+    }
   }
 }
 

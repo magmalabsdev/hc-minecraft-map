@@ -6,7 +6,7 @@ import type { Dimension } from "@hcmap/shared";
  * marker data when a local backend is present.
  */
 
-export type BaseVariant = "terrain" | "minimal";
+export type BaseVariant = "terrain" | "minimal" | "bands";
 
 /**
  * Prefix an absolute app path with Vite's base URL, so the app works both at the

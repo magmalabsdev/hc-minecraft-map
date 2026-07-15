@@ -9,6 +9,7 @@ import {
   type Station,
   type Vec2,
   disruptionTypeLabel,
+  lineBuiltThroughStation,
   resolveSegment,
 } from "@hcmap/shared";
 import type { LineKind } from "../data/useOverlays";
@@ -243,6 +244,9 @@ function pushNetwork(
     const b = nodeLatLng(net, seg.b);
     if (!a || !b) continue;
     const { props, disrupted, type, note } = resolveSegment(seg);
+    // Planned rail track that hasn't been built yet only shows while editing.
+    const planned = rail && props.built === false;
+    if (planned && !edit.enabled) continue;
     const selected = isSelected(edit.selection, "segment", seg.id);
     const paved = props.paved;
 
@@ -256,7 +260,9 @@ function pushNetwork(
 
     const weight = widthToWeight(props.width, opts.pixelsPerBlock) + (selected ? 2 : 0);
     // Unpaved roads render dashed (dirt track); paved solid. Rail always ties.
-    const dashArray = rail ? "3 7" : !paved ? "6 7" : undefined;
+    // Planned (unbuilt) rail track gets its own sparser dash so it reads as
+    // distinct from a real, already-laid track while editing.
+    const dashArray = planned ? "2 8" : rail ? "3 7" : !paved ? "6 7" : undefined;
     // Width 0 means "not built yet / nonfunctional" — fade it out instead of
     // drawing it like a real road/track.
     const ghost = props.width <= 0;
@@ -264,7 +270,7 @@ function pushNetwork(
     const line = L.polyline([a, b], {
       color,
       weight,
-      opacity: ghost ? 0.15 : props.lit ? 1 : 0.9,
+      opacity: ghost ? 0.15 : planned ? 0.4 : props.lit ? 1 : 0.9,
       dashArray,
       lineCap: paved || rail ? "round" : "butt",
     });
@@ -280,7 +286,7 @@ function pushNetwork(
             .map((r) => `<b>${escape(r.name)}</b><br>${railTermini(r, net)}`)
             .join("<br><br>")
         : "<b>Railway</b>";
-      tip = body + (disrupt ? `<br>${disrupt}` : "");
+      tip = body + (disrupt ? `<br>${disrupt}` : "") + (planned ? "<br>🚧 Planned — not yet built" : "");
     } else {
       // Highway: line 1 route name, line 2 path info, line 3 disruption (if any).
       const name = usingRoutes.length
@@ -299,7 +305,7 @@ function pushNetwork(
     layers.push(line);
 
     // Disruption marker: black stripes over the full road width.
-    if (disrupted && !ghost) {
+    if (disrupted && !ghost && !planned) {
       layers.push(
         L.polyline([a, b], {
           color: "#000000",
@@ -313,7 +319,7 @@ function pushNetwork(
     }
 
     // lit centre line accent
-    if (props.lit && !disrupted && !ghost) {
+    if (props.lit && !disrupted && !ghost && !planned) {
       layers.push(
         L.polyline([a, b], {
           color: "#ffe27a",
@@ -473,19 +479,28 @@ function pushStations(
   opts: OverlayRenderOpts,
 ): void {
   for (const st of net.stations) {
-    pushStationLike(layers, st, net.routes, opts);
+    pushStationLike(layers, st, net, opts);
   }
 }
 
 function pushStationLike(
   layers: L.Layer[],
   st: Station,
-  routes: Route[],
+  net: RailwayNetwork,
   opts: OverlayRenderOpts,
 ): void {
   if (st.polygon.length < 3) return;
-  // All lines this station serves, in a stable order.
-  const lines = routes.filter((r) => st.lineIds.includes(r.id));
+  // A planned (unbuilt) station footprint only shows while editing.
+  const planned = st.built === false;
+  if (planned && !opts.edit.enabled) return;
+  // Lines this station is assigned to. Outside edit mode, a line only counts
+  // as an actual transfer here once a built path of that line reaches the
+  // station's footprint — merely being assigned to a planned line doesn't
+  // show up as one until it's actually built through.
+  const assignedLines = net.routes.filter((r) => st.lineIds.includes(r.id));
+  const lines = opts.edit.enabled
+    ? assignedLines
+    : assignedLines.filter((r) => lineBuiltThroughStation(r, st, net));
   const colors = lines.length ? lines.map((l) => l.color ?? "#888") : ["#d0d0d0"];
   const ring = st.polygon.map((p) => blockToLatLng(p.x, p.z));
 
@@ -500,9 +515,11 @@ function pushStationLike(
     color: "#20242b",
     weight: 2,
     fillColor,
-    fillOpacity: colors.length > 1 ? 0.65 : 0.3,
+    fillOpacity: planned ? 0.15 : colors.length > 1 ? 0.65 : 0.3,
+    opacity: planned ? 0.45 : 1,
+    dashArray: planned ? "4 4" : undefined,
   });
-  poly.bindTooltip(stationTooltip(st, lines));
+  poly.bindTooltip(stationTooltip(st, lines, planned));
   poly.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
@@ -515,6 +532,7 @@ function pushStationLike(
   const cz = st.polygon.reduce((s, p) => s + p.z, 0) / n;
   const selected = isSelected(opts.edit.selection, "station", st.id);
   const marker = L.marker(blockToLatLng(cx, cz), {
+    opacity: planned ? 0.45 : 1,
     icon: L.divIcon({
       className: "landmark-marker",
       html: `<div class="lm-badge station-pie${selected ? " sel" : ""}" style="background:${conicGradient(
@@ -524,7 +542,7 @@ function pushStationLike(
       iconAnchor: [20, 20],
     }),
   });
-  marker.bindTooltip(stationTooltip(st, lines));
+  marker.bindTooltip(stationTooltip(st, lines, planned));
   marker.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
@@ -601,14 +619,15 @@ function centroid(lm: Landmark): L.LatLng {
   return blockToLatLng(sx, sz);
 }
 
-function stationTooltip(st: Station, lines: Route[]): string {
+function stationTooltip(st: Station, lines: Route[], planned = false): string {
   const list = lines.length
     ? "<br>" +
       lines
         .map((l) => `<span style="color:${l.color ?? "#ccc"}">■</span> ${escape(l.name)}`)
         .join("<br>")
     : "";
-  return `<b>🚆 ${escape(st.name)}</b>${list}`;
+  const plannedNote = planned ? "<br>🚧 Planned — not yet built" : "";
+  return `<b>🚆 ${escape(st.name)}</b>${list}${plannedNote}`;
 }
 
 function escape(s: string): string {

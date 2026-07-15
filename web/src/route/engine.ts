@@ -3,6 +3,7 @@ import {
   type Id,
   type Landmark,
   type RailwayNetwork,
+  type Segment,
   type Vec2,
   nodeDistance,
   resolveSegment,
@@ -43,12 +44,19 @@ function landmarkPos(lm: Landmark): Vec2 | null {
   return null;
 }
 
-/** Nodes touching at least one segment that isn't width-0 (not built yet /
- *  nonfunctional) — the only nodes route-finding may use as an anchor. */
+/** A segment is usable for route-finding unless it's width-0 (not built yet /
+ *  nonfunctional) or explicitly marked unbuilt (planned rail track). */
+function isUsable(seg: Segment): boolean {
+  const props = resolveSegment(seg).props;
+  return props.width > 0 && props.built !== false;
+}
+
+/** Nodes touching at least one usable segment — the only nodes route-finding
+ *  may use as an anchor. */
 function functionalNodeIds(net: Network): Set<Id> {
   const ids = new Set<Id>();
   for (const seg of Object.values(net.segments)) {
-    if (resolveSegment(seg).props.width <= 0) continue;
+    if (!isUsable(seg)) continue;
     ids.add(seg.a);
     ids.add(seg.b);
   }
@@ -70,7 +78,7 @@ function nearestNode(net: Network, p: Vec2, allowed: Set<Id>): Id | null {
 }
 
 /** Dijkstra shortest path over the shared segment graph (edge weight = length).
- *  Width-0 segments (not built yet / nonfunctional) are excluded entirely. */
+ *  Unusable segments (width-0, or unbuilt/planned track) are excluded entirely. */
 function shortestPath(net: Network, start: Id, goal: Id): Id[] | null {
   const adj = new Map<Id, { to: Id; w: number }[]>();
   const link = (from: Id, to: Id, w: number) => {
@@ -79,7 +87,7 @@ function shortestPath(net: Network, start: Id, goal: Id): Id[] | null {
     list.push({ to, w });
   };
   for (const seg of Object.values(net.segments)) {
-    if (resolveSegment(seg).props.width <= 0) continue;
+    if (!isUsable(seg)) continue;
     const a = net.nodes[seg.a];
     const b = net.nodes[seg.b];
     if (!a || !b) continue;
