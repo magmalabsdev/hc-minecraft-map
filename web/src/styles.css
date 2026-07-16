@@ -325,6 +325,18 @@ button.danger {
   background: rgba(255, 107, 107, 0.15);
   border-color: rgba(255, 107, 107, 0.4);
 }
+.entrance-row {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.entrance-row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+.entrance-row .field-row button.danger {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+}
 
 /* --- editable node markers --- */
 .node-marker .node-dot {
@@ -493,6 +505,38 @@ button.danger {
 .icon-btn.sel {
   background: var(--accent);
   border-color: var(--accent);
+}
+
+/* --- station entrance/exit markers --- */
+.access-marker .access-badge {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #14161a;
+  border: 1.5px solid rgba(0, 0, 0, 0.6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.access-badge.entrance { background: #2ecc71; }
+.access-badge.exit { background: #ff6b6b; }
+.access-badge.both { background: #f2c94c; }
+
+/* --- tunnel view crossing markers (hollow, grade-separated) --- */
+.crossing-marker .crossing-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(20, 22, 26, 0.75);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 /* --- midpoint insert handles --- */

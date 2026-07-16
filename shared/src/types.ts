@@ -31,9 +31,13 @@ export interface Node {
 export interface SegmentProps {
   /** Width in blocks. */
   width: number;
+  /** Highway-only: whether the surface is flat. Ignored for railway segments. */
   flat: boolean;
   lit: boolean;
-  /** Whether the road surface is paved. Missing in legacy data => treat as true. */
+  /**
+   * Highway-only: whether the road surface is paved. Missing in legacy data
+   * => treat as true. Ignored for railway segments.
+   */
   paved: boolean;
   /**
    * Whether this has actually been built, vs. only planned. Missing => treat
@@ -41,6 +45,13 @@ export interface SegmentProps {
    * excluded from route-finding; never overridden by a disruption.
    */
   built?: boolean;
+  /**
+   * The track/road's Y coordinate where it runs underground (tunnel depth),
+   * for every path — highway or railway. Missing => unknown/not tunneled.
+   * Drives the resistor-band "Tunnel view" overlay: the tens digit picks the
+   * main line color, the ones digit picks the dashed overlay color.
+   */
+  tunnelY?: number;
 }
 
 /** The kind of disruption affecting a segment. "construction" renders specially. */
@@ -102,6 +113,17 @@ export interface Route {
 
 export type NetworkKind = "highway" | "railway";
 
+/** Whether a station access point works as an entrance, an exit, or both. */
+export type StationAccessKind = "entrance" | "exit" | "both";
+
+/** A labeled entrance/exit point for a station (e.g. a named street entrance). */
+export interface StationAccess {
+  id: Id;
+  name: string;
+  point: Vec2;
+  kind: StationAccessKind;
+}
+
 /** A railway station: a polygon assigned to one or more rail lines. */
 export interface Station {
   id: Id;
@@ -116,6 +138,8 @@ export interface Station {
    * outside edit mode.
    */
   built?: boolean;
+  /** Labeled entrances/exits. Missing/empty => none defined yet. */
+  entrances?: StationAccess[];
 }
 
 export interface HighwayNetwork {

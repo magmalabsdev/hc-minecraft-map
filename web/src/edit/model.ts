@@ -145,7 +145,7 @@ export function moveNode(net: Network, nodeId: Id, x: number, z: number): void {
 /**
  * Split a segment by inserting a new node in its middle, updating every route
  * that traverses it so the whole network stays connected. New sub-segments
- * inherit the original's width/flat/lit/disruption.
+ * inherit the original's width/flat/lit/paved/tunnelY/disruption.
  */
 export function insertNodeInSegment(
   net: Network,
@@ -173,6 +173,7 @@ export function insertNodeInSegment(
     flat: seg.flat,
     lit: seg.lit,
     paved: seg.paved ?? true,
+    tunnelY: seg.tunnelY,
   };
   const s1 = ensureSegment(net, a, nid, props);
   const s2 = ensureSegment(net, nid, b, props);
@@ -368,4 +369,30 @@ export function addStation(net: RailwayNetwork, polygon: Vec2[]): Id {
 
 export function deleteStation(net: RailwayNetwork, id: Id): void {
   net.stations = net.stations.filter((s) => s.id !== id);
+}
+
+/** The station's polygon centroid — the default drop point for a new entrance. */
+export function stationCentroid(station: Station): Vec2 {
+  const n = station.polygon.length || 1;
+  return {
+    x: station.polygon.reduce((s, p) => s + p.x, 0) / n,
+    z: station.polygon.reduce((s, p) => s + p.z, 0) / n,
+  };
+}
+
+export function addStationEntrance(station: Station, x: number, z: number): Id {
+  const id = newId("se");
+  const entrances = station.entrances ?? (station.entrances = []);
+  entrances.push({
+    id,
+    name: `Entrance ${entrances.length + 1}`,
+    point: { x: Math.round(x), z: Math.round(z) },
+    kind: "both",
+  });
+  return id;
+}
+
+export function deleteStationEntrance(station: Station, id: Id): void {
+  if (!station.entrances) return;
+  station.entrances = station.entrances.filter((e) => e.id !== id);
 }

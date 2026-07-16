@@ -6,7 +6,9 @@ import type { Climate } from "deepslate";
 import {
   blockToLowresTileIndex,
   decodeHeight,
+  digitBands,
   LOWRES_TILE_SIZE,
+  RESISTOR_COLORS,
   type Dimension,
 } from "@hcmap/shared";
 import {
@@ -41,25 +43,11 @@ const SEA_LEVEL = 63;
 const PAPER: [number, number, number] = [216, 211, 198];
 
 /**
- * Resistor color-code palette (0-9: Black, Brown, Red, Orange, Yellow, Green,
- * Blue, Violet, Grey, White), pre-blended into light/dark variants so the
- * "true" Terrain 2D background can read a block's elevation the way a
- * resistor's bands read a two-digit number: the tens digit of Y picks the
- * hue, the ones digit picks light (0-4) vs dark (5-9).
+ * The resistor color palette (see @hcmap/shared), pre-blended into light/dark
+ * variants so the "true" Terrain 2D background can read a block's elevation
+ * the way a resistor's bands read a two-digit number: the tens digit of Y
+ * picks the hue, the ones digit picks light (0-4) vs dark (5-9).
  */
-const RESISTOR_BASE: [number, number, number][] = [
-  [26, 26, 26], // 0 black
-  [123, 63, 0], // 1 brown
-  [211, 47, 47], // 2 red
-  [230, 126, 34], // 3 orange
-  [241, 196, 15], // 4 yellow
-  [46, 125, 50], // 5 green
-  [21, 101, 192], // 6 blue
-  [123, 31, 162], // 7 violet
-  [117, 117, 117], // 8 grey
-  [245, 245, 245], // 9 white
-];
-
 function mix(
   c: [number, number, number],
   target: [number, number, number],
@@ -72,14 +60,12 @@ function mix(
   ];
 }
 
-const RESISTOR_LIGHT = RESISTOR_BASE.map((c) => mix(c, [255, 255, 255], 0.4));
-const RESISTOR_DARK = RESISTOR_BASE.map((c) => mix(c, [0, 0, 0], 0.35));
+const RESISTOR_LIGHT = RESISTOR_COLORS.map((c) => mix(c, [255, 255, 255], 0.4));
+const RESISTOR_DARK = RESISTOR_COLORS.map((c) => mix(c, [0, 0, 0], 0.35));
 
 /** Elevation -> resistor-band color. Continuous across negative Y via floored digits. */
 function bandColor(h: number): [number, number, number] {
-  const y = Math.floor(h);
-  const tens = (((Math.floor(y / 10) % 10) + 10) % 10);
-  const ones = (((y % 10) + 10) % 10);
+  const { tens, ones } = digitBands(h);
   return ones < 5 ? RESISTOR_LIGHT[tens] : RESISTOR_DARK[tens];
 }
 

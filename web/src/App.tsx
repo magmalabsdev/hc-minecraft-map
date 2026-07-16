@@ -41,6 +41,7 @@ export default function App() {
   const [mode, setMode] = useState<BaseMode>("landscape2d");
   const [showContours, setShowContours] = useState(false);
   const [showLive, setShowLive] = useState(true);
+  const [showTunnelDepths, setShowTunnelDepths] = useState(false);
   const [toggles, setToggles] = useState<OverlayToggles>({
     highway: true,
     railway: true,
@@ -270,6 +271,7 @@ export default function App() {
         baseMode={mode}
         showContours={showContours}
         showLive={showLive}
+        showTunnelDepths={showTunnelDepths}
         backend={backend}
         overlays={overlays}
         toggles={toggles}
@@ -352,6 +354,14 @@ export default function App() {
           <label className="check">
             <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />
             Live players &amp; markers
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={showTunnelDepths}
+              onChange={(e) => setShowTunnelDepths(e.target.checked)}
+            />
+            Tunnel view
           </label>
         </section>
 

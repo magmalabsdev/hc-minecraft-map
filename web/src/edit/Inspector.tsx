@@ -9,6 +9,7 @@ import {
   type Route,
   type Segment,
   type Station,
+  type StationAccessKind,
   type Vec2,
   validateRoute,
 } from "@hcmap/shared";
@@ -18,19 +19,28 @@ import { RouteMapDialog } from "./RouteMapDialog";
 import {
   type EditState,
   type PolyTarget,
+  addStationEntrance,
   applyToRouteSegments,
   deleteLandmark,
   deleteNodeFromNetwork,
   deletePolyVertex,
   deleteRoute,
   deleteStation,
+  deleteStationEntrance,
   moveNode,
   movePolyVertex,
   routeSegmentCount,
   routeSegmentsUniform,
   routesUsingSegment,
+  stationCentroid,
   totalRouteLength,
 } from "./model";
+
+const ACCESS_KINDS: { id: StationAccessKind; label: string }[] = [
+  { id: "both", label: "Entrance/Exit" },
+  { id: "entrance", label: "Entrance only" },
+  { id: "exit", label: "Exit only" },
+];
 
 const SHAPES: LandmarkShape[] = ["marker", "circle", "square", "diamond", "polygon"];
 
@@ -220,6 +230,7 @@ function RouteSection(p: {
   const uLit = routeSegmentsUniform(net, route, (s) => s.lit);
   const uPaved = routeSegmentsUniform(net, route, (s) => s.paved ?? true);
   const uBuilt = routeSegmentsUniform(net, route, (s) => s.built ?? true);
+  const uTunnelY = routeSegmentsUniform(net, route, (s) => s.tunnelY);
   const setIndet = (mixed: boolean) => (el: HTMLInputElement | null) => {
     if (el) el.indeterminate = mixed;
   };
@@ -282,18 +293,34 @@ function RouteSection(p: {
               />
             </label>
           </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              ref={setIndet(uFlat === undefined)}
-              checked={uFlat ?? false}
-              onChange={(e) => {
-                batch((s) => (s.flat = e.target.checked));
-                patch((r) => (r.defaults.flat = e.target.checked));
-              }}
-            />
-            Flat
-          </label>
+          {p.net === "highway" && (
+            <>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  ref={setIndet(uFlat === undefined)}
+                  checked={uFlat ?? false}
+                  onChange={(e) => {
+                    batch((s) => (s.flat = e.target.checked));
+                    patch((r) => (r.defaults.flat = e.target.checked));
+                  }}
+                />
+                Flat
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  ref={setIndet(uPaved === undefined)}
+                  checked={uPaved ?? true}
+                  onChange={(e) => {
+                    batch((s) => (s.paved = e.target.checked));
+                    patch((r) => (r.defaults.paved = e.target.checked));
+                  }}
+                />
+                Paved
+              </label>
+            </>
+          )}
           <label className="check">
             <input
               type="checkbox"
@@ -306,18 +333,21 @@ function RouteSection(p: {
             />
             Lit
           </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              ref={setIndet(uPaved === undefined)}
-              checked={uPaved ?? true}
-              onChange={(e) => {
-                batch((s) => (s.paved = e.target.checked));
-                patch((r) => (r.defaults.paved = e.target.checked));
-              }}
-            />
-            Paved
-          </label>
+          <div className="field-row">
+            <label>
+              Tunnel Y
+              <input
+                type="number"
+                value={uTunnelY ?? ""}
+                placeholder="mixed / none"
+                onChange={(e) => {
+                  const y = e.target.value === "" ? undefined : Number(e.target.value);
+                  batch((s) => (s.tunnelY = y));
+                  patch((r) => (r.defaults.tunnelY = y));
+                }}
+              />
+            </label>
+          </div>
           {p.net === "railway" && (
             <label className="check">
               <input
@@ -403,23 +433,39 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
           <input type="number" min={1} disabled={!p.editable} value={seg.width} onChange={(e) => patch((s) => (s.width = Number(e.target.value)))} />
         </label>
       </div>
-      <label className="check">
-        <input type="checkbox" disabled={!p.editable} checked={seg.flat} onChange={(e) => patch((s) => (s.flat = e.target.checked))} />
-        Flat
-      </label>
+      {p.net === "highway" && (
+        <>
+          <label className="check">
+            <input type="checkbox" disabled={!p.editable} checked={seg.flat} onChange={(e) => patch((s) => (s.flat = e.target.checked))} />
+            Flat
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              disabled={!p.editable}
+              checked={seg.paved ?? true}
+              onChange={(e) => patch((s) => (s.paved = e.target.checked))}
+            />
+            Paved
+          </label>
+        </>
+      )}
       <label className="check">
         <input type="checkbox" disabled={!p.editable} checked={seg.lit} onChange={(e) => patch((s) => (s.lit = e.target.checked))} />
         Lit
       </label>
-      <label className="check">
-        <input
-          type="checkbox"
-          disabled={!p.editable}
-          checked={seg.paved ?? true}
-          onChange={(e) => patch((s) => (s.paved = e.target.checked))}
-        />
-        Paved
-      </label>
+      <div className="field-row">
+        <label>
+          Tunnel Y
+          <input
+            type="number"
+            disabled={!p.editable}
+            value={seg.tunnelY ?? ""}
+            placeholder="none"
+            onChange={(e) => patch((s) => (s.tunnelY = e.target.value === "" ? undefined : Number(e.target.value)))}
+          />
+        </label>
+      </div>
       {p.net === "railway" && (
         <label className="check">
           <input
@@ -477,10 +523,12 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
                 />
               </label>
             </div>
-            <label className="check">
-              <input type="checkbox" checked={d.flat ?? seg.flat} onChange={(e) => patch((s) => (s.disruption!.flat = e.target.checked))} />
-              Flat (disrupted)
-            </label>
+            {p.net === "highway" && (
+              <label className="check">
+                <input type="checkbox" checked={d.flat ?? seg.flat} onChange={(e) => patch((s) => (s.disruption!.flat = e.target.checked))} />
+                Flat (disrupted)
+              </label>
+            )}
             <label className="check">
               <input type="checkbox" checked={d.lit ?? seg.lit} onChange={(e) => patch((s) => (s.disruption!.lit = e.target.checked))} />
               Lit (disrupted)
@@ -585,6 +633,99 @@ function StationPanel(p: { overlays: Overlays; id: Id; editable: boolean; clear:
           </label>
         );
       })}
+      <label className="section-label" style={{ marginTop: 6 }}>
+        Entrances &amp; exits
+      </label>
+      {(st.entrances ?? []).length === 0 && (
+        <p className="hint">No named entrances/exits yet.</p>
+      )}
+      {(st.entrances ?? []).map((en) => (
+        <div className="entrance-row" key={en.id}>
+          <label className="stack">
+            Name
+            <input
+              disabled={!p.editable}
+              value={en.name}
+              onChange={(e) =>
+                patch((s) => {
+                  const found = s.entrances?.find((x) => x.id === en.id);
+                  if (found) found.name = e.target.value;
+                })
+              }
+            />
+          </label>
+          <label className="stack">
+            Type
+            <select
+              disabled={!p.editable}
+              value={en.kind}
+              onChange={(e) =>
+                patch((s) => {
+                  const found = s.entrances?.find((x) => x.id === en.id);
+                  if (found) found.kind = e.target.value as StationAccessKind;
+                })
+              }
+            >
+              {ACCESS_KINDS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="field-row">
+            <label>
+              X
+              <input
+                type="number"
+                disabled={!p.editable}
+                value={en.point.x}
+                onChange={(e) =>
+                  patch((s) => {
+                    const found = s.entrances?.find((x) => x.id === en.id);
+                    if (found) found.point.x = Number(e.target.value);
+                  })
+                }
+              />
+            </label>
+            <label>
+              Z
+              <input
+                type="number"
+                disabled={!p.editable}
+                value={en.point.z}
+                onChange={(e) =>
+                  patch((s) => {
+                    const found = s.entrances?.find((x) => x.id === en.id);
+                    if (found) found.point.z = Number(e.target.value);
+                  })
+                }
+              />
+            </label>
+            {p.editable && (
+              <button
+                className="danger"
+                onClick={() => patch((s) => deleteStationEntrance(s, en.id))}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+      {p.editable && (
+        <button
+          style={{ width: "100%", marginBottom: 6 }}
+          onClick={() =>
+            patch((s) => {
+              const c = stationCentroid(s);
+              addStationEntrance(s, c.x, c.z);
+            })
+          }
+        >
+          + Add entrance
+        </button>
+      )}
       {p.editable && (
         <>
           <p className="hint">Drag a vertex to reshape, or a midpoint to add one.</p>

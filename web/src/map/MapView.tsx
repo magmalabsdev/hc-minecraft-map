@@ -39,6 +39,7 @@ export interface MapViewProps {
   baseMode: BaseMode;
   showContours: boolean;
   showLive: boolean;
+  showTunnelDepths: boolean;
   backend: BackendStatus;
   overlays: {
     highways: HighwayNetwork;
@@ -69,6 +70,7 @@ export function MapView(props: MapViewProps) {
     baseMode,
     showContours,
     showLive,
+    showTunnelDepths,
     backend,
     overlays,
     toggles,
@@ -231,11 +233,12 @@ export function MapView(props: MapViewProps) {
       handlers: overlayHandlers,
       pixelsPerBlock: Math.pow(2, zoom),
       onPattern: (id, colors) => patterns.push({ id, colors }),
+      showTunnelDepths,
     })) {
       group.addLayer(layer);
     }
     ensureStripePatterns(map, patterns);
-  }, [overlays, toggles, edit, overlayHandlers, zoom]);
+  }, [overlays, toggles, edit, overlayHandlers, zoom, showTunnelDepths]);
 
   // --- computed route highlight ---
   useEffect(() => {

@@ -7,13 +7,17 @@ import {
   type RailwayNetwork,
   type Route,
   type Station,
+  type StationAccessKind,
   type Vec2,
+  digitBands,
   disruptionTypeLabel,
   lineBuiltThroughStation,
+  resistorColorHex,
   resolveSegment,
 } from "@hcmap/shared";
 import type { LineKind } from "../data/useOverlays";
 import type { EditState, Network, PolyTarget, Selection } from "../edit/model";
+import { routesUsingSegment } from "../edit/model";
 import { MINECRAFT_ICONS } from "../icons/minecraftIcons";
 import { blockToLatLng } from "./crs";
 
@@ -89,6 +93,13 @@ export interface OverlayRenderOpts {
   pixelsPerBlock: number;
   /** Register an SVG stripe pattern (for transfer-station bodies). */
   onPattern?: (id: string, colors: string[]) => void;
+  /**
+   * "Tunnel view": recolor every path by its tunnel Y depth instead of its
+   * normal route/width color — tens digit picks the main line color (resistor
+   * code), ones digit picks a dashed overlay color. Paths with no tunnel Y set
+   * render neutral grey.
+   */
+  showTunnelDepths?: boolean;
 }
 
 /** Deterministic id for a stripe pattern of the given colours. */
@@ -135,8 +146,136 @@ export function buildOverlays(opts: OverlayRenderOpts): L.Layer[] {
   if (opts.toggles.landmark) {
     pushLandmarks(layers, opts.landmarks, opts);
   }
+  if (opts.showTunnelDepths) {
+    pushTunnelCrossings(layers, opts);
+  }
   pushDraft(layers, opts.edit);
   return layers;
+}
+
+// --- tunnel view: mark every place two paths cross on the 2D map ---
+
+interface PathEdge {
+  kind: LineKind;
+  segId: Id;
+  aId: Id;
+  bId: Id;
+  a: Vec2;
+  b: Vec2;
+  tunnelY: number;
+}
+
+function collectEdges(edges: PathEdge[], kind: LineKind, net: Network): void {
+  for (const seg of Object.values(net.segments)) {
+    const a = net.nodes[seg.a];
+    const b = net.nodes[seg.b];
+    if (!a || !b) continue;
+    const { props } = resolveSegment(seg);
+    if (kind === "railway" && props.built === false) continue; // planned track never crosses "for real"
+    edges.push({
+      kind,
+      segId: seg.id,
+      aId: seg.a,
+      bId: seg.b,
+      a: { x: a.x, z: a.z },
+      b: { x: b.x, z: b.z },
+      tunnelY: props.tunnelY ?? 0,
+    });
+  }
+}
+
+/** The node id these two edges share, if any (they touch at an endpoint). */
+function sharedNodeId(e1: PathEdge, e2: PathEdge): Id | null {
+  if (e1.aId === e2.aId || e1.aId === e2.bId) return e1.aId;
+  if (e1.bId === e2.aId || e1.bId === e2.bId) return e1.bId;
+  return null;
+}
+
+/** Whether some single route treats both edges as part of its own path (a bend, not a crossing). */
+function sameRoutePath(e1: PathEdge, e2: PathEdge, highways: HighwayNetwork, railways: RailwayNetwork): boolean {
+  if (e1.kind !== e2.kind) return false;
+  const net = e1.kind === "highway" ? highways : railways;
+  const routesA = routesUsingSegment(net, e1.segId);
+  const routesB = routesUsingSegment(net, e2.segId);
+  return routesA.some((ra) => routesB.some((rb) => ra.id === rb.id));
+}
+
+/** Interior intersection point of two segments, or null if parallel / not crossing within both. */
+function segmentCrossPoint(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2): Vec2 | null {
+  const d1x = p2.x - p1.x;
+  const d1z = p2.z - p1.z;
+  const d2x = p4.x - p3.x;
+  const d2z = p4.z - p3.z;
+  const denom = d1x * d2z - d1z * d2x;
+  if (Math.abs(denom) < 1e-9) return null;
+  const dx = p3.x - p1.x;
+  const dz = p3.z - p1.z;
+  const t = (dx * d2z - dz * d2x) / denom;
+  const u = (dx * d1z - dz * d1x) / denom;
+  const eps = 1e-6;
+  if (t < eps || t > 1 - eps || u < eps || u > 1 - eps) return null;
+  return { x: p1.x + t * d1x, z: p1.z + t * d1z };
+}
+
+/**
+ * "Tunnel view" crossing markers: every place two paths cross on the 2D map,
+ * regardless of whether they're actually connected — filled where they share
+ * a node (a real junction), hollow with a Y-depth difference where they just
+ * pass over/under each other (a grade-separated crossing).
+ */
+function pushTunnelCrossings(layers: L.Layer[], opts: OverlayRenderOpts): void {
+  const edges: PathEdge[] = [];
+  if (opts.toggles.highway) collectEdges(edges, "highway", opts.highways);
+  if (opts.toggles.railway) collectEdges(edges, "railway", opts.railways);
+
+  const junctions = new Map<string, Vec2>();
+  const crossings = new Map<string, { point: Vec2; diff: number }>();
+
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const e1 = edges[i];
+      const e2 = edges[j];
+      const shared = sharedNodeId(e1, e2);
+      if (shared) {
+        if (!sameRoutePath(e1, e2, opts.highways, opts.railways)) {
+          const pos = e1.aId === shared ? e1.a : e1.b;
+          junctions.set(`${e1.kind}:${shared}`, pos);
+        }
+        continue;
+      }
+      const pt = segmentCrossPoint(e1.a, e1.b, e2.a, e2.b);
+      if (!pt) continue;
+      const key = `${Math.round(pt.x)},${Math.round(pt.z)}`;
+      if (!crossings.has(key)) {
+        crossings.set(key, { point: pt, diff: Math.round(Math.abs(e1.tunnelY - e2.tunnelY)) });
+      }
+    }
+  }
+
+  for (const pos of junctions.values()) {
+    const marker = L.circleMarker(blockToLatLng(pos.x, pos.z), {
+      radius: 6,
+      color: "#14161a",
+      weight: 2,
+      fillColor: "#ffffff",
+      fillOpacity: 1,
+    });
+    marker.bindTooltip("Junction — paths meet here");
+    layers.push(marker);
+  }
+
+  for (const { point, diff } of crossings.values()) {
+    const marker = L.marker(blockToLatLng(point.x, point.z), {
+      icon: L.divIcon({
+        className: "crossing-marker",
+        html: `<div class="crossing-badge">${diff}</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      }),
+    });
+    marker.bindTooltip(`Grade-separated crossing — Δ${diff} blocks`);
+    layers.push(marker);
+  }
 }
 
 /** In-progress landmark-area polygon while drawing. */
@@ -250,13 +389,24 @@ function pushNetwork(
     const selected = isSelected(edit.selection, "segment", seg.id);
     const paved = props.paved;
 
+    // "Tunnel view" recolors every path by its tunnel Y depth (resistor code)
+    // instead of its normal route/width color.
+    const tunnelColor =
+      opts.showTunnelDepths && !selected
+        ? props.tunnelY !== undefined
+          ? resistorColorHex(digitBands(props.tunnelY).tens)
+          : "#555555"
+        : null;
+
     // Roads keep their width-based colour (rail keeps its line colour) even when
     // disrupted; the disruption shows as black stripes laid over the road.
-    const color = selected
-      ? SELECT_COLOR
-      : rail
-        ? (segColor.get(seg.id) ?? "#888")
-        : widthColor(props.width);
+    const color =
+      tunnelColor ??
+      (selected
+        ? SELECT_COLOR
+        : rail
+          ? (segColor.get(seg.id) ?? "#888")
+          : widthColor(props.width));
 
     const weight = widthToWeight(props.width, opts.pixelsPerBlock) + (selected ? 2 : 0);
     // Unpaved roads render dashed (dirt track); paved solid. Rail always ties.
@@ -278,6 +428,7 @@ function pushNetwork(
     const disrupt = disrupted
       ? `⚠ ${disruptionTypeLabel(type)}${note ? `: ${escape(note)}` : ""}`
       : "";
+    const tunnelNote = props.tunnelY !== undefined ? `<br>⛏ Tunnel Y ${props.tunnelY}` : "";
     let tip: string;
     if (rail) {
       // Rail: line name(s) + termini (the physical width/paving is irrelevant).
@@ -286,7 +437,7 @@ function pushNetwork(
             .map((r) => `<b>${escape(r.name)}</b><br>${railTermini(r, net)}`)
             .join("<br><br>")
         : "<b>Railway</b>";
-      tip = body + (disrupt ? `<br>${disrupt}` : "") + (planned ? "<br>🚧 Planned — not yet built" : "");
+      tip = body + tunnelNote + (disrupt ? `<br>${disrupt}` : "") + (planned ? "<br>🚧 Planned — not yet built" : "");
     } else {
       // Highway: line 1 route name, line 2 path info, line 3 disruption (if any).
       const name = usingRoutes.length
@@ -295,7 +446,7 @@ function pushNetwork(
       const path = `${props.width} wide · ${paved ? "paved" : "unpaved"} · ${
         props.flat ? "flat" : "sloped"
       } · ${props.lit ? "lit" : "unlit"}`;
-      tip = `<b>${name}</b><br>${path}${disrupt ? `<br>${disrupt}` : ""}`;
+      tip = `<b>${name}</b><br>${path}${tunnelNote}${disrupt ? `<br>${disrupt}` : ""}`;
     }
     line.bindTooltip(tip, { sticky: true });
     line.on("click", (e) => {
@@ -303,6 +454,20 @@ function pushNetwork(
       handlers.onSelect({ type: "segment", net: kind, id: seg.id });
     });
     layers.push(line);
+
+    // "Tunnel view" ones-digit overlay: small dashes in a second resistor color.
+    if (opts.showTunnelDepths && !selected && props.tunnelY !== undefined) {
+      layers.push(
+        L.polyline([a, b], {
+          color: resistorColorHex(digitBands(props.tunnelY).ones),
+          weight: Math.max(1.5, weight * 0.4),
+          opacity: 0.95,
+          dashArray: "4 10",
+          lineCap: "butt",
+          interactive: false,
+        }),
+      );
+    }
 
     // Disruption marker: black stripes over the full road width.
     if (disrupted && !ghost && !planned) {
@@ -552,6 +717,32 @@ function pushStationLike(
   if (isPolyEditing(opts.edit.selection, opts.edit, "station", st.id)) {
     pushPolygonEditor(layers, { kind: "station", id: st.id }, st.polygon, opts);
   }
+
+  for (const en of st.entrances ?? []) {
+    const enMarker = L.marker(blockToLatLng(en.point.x, en.point.z), {
+      opacity: planned ? 0.45 : 1,
+      icon: L.divIcon({
+        className: "access-marker",
+        html: `<div class="access-badge ${en.kind}">${accessGlyph(en.kind)}</div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    });
+    enMarker.bindTooltip(`<b>${escape(en.name)}</b><br>${accessKindLabel(en.kind)}`);
+    enMarker.on("click", (e) => {
+      L.DomEvent.stop(e);
+      opts.handlers.onSelect({ type: "station", id: st.id });
+    });
+    layers.push(enMarker);
+  }
+}
+
+function accessGlyph(kind: StationAccessKind): string {
+  return kind === "entrance" ? "→" : kind === "exit" ? "←" : "↔";
+}
+
+function accessKindLabel(kind: StationAccessKind): string {
+  return kind === "entrance" ? "Entrance" : kind === "exit" ? "Exit" : "Entrance / Exit";
 }
 
 function pushLandmarks(

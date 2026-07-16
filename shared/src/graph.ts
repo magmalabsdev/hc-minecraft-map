@@ -53,19 +53,21 @@ export function resolveSegment(seg: Segment): {
   const d = seg.disruption;
   if (!d || !d.active) {
     return {
-      props: { width: seg.width, flat: seg.flat, lit: seg.lit, paved, built },
+      props: { width: seg.width, flat: seg.flat, lit: seg.lit, paved, built, tunnelY: seg.tunnelY },
       disrupted: false,
     };
   }
   // An active disruption always marks the segment; any provided fields override
-  // the standard values (undefined fields keep the standard). `built` is a
-  // planning status, not a transient condition, so disruptions never touch it.
+  // the standard values (undefined fields keep the standard). `built` and
+  // `tunnelY` are fixed/planning attributes, not transient conditions, so
+  // disruptions never touch them.
   const props: SegmentProps = {
     width: d.width ?? seg.width,
     flat: d.flat ?? seg.flat,
     lit: d.lit ?? seg.lit,
     paved: d.paved ?? paved,
     built,
+    tunnelY: seg.tunnelY,
   };
   return { props, disrupted: true, type: d.type ?? "other", note: d.note };
 }
