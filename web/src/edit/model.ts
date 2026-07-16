@@ -253,6 +253,53 @@ export function deleteRoute(net: Network, routeId: Id): void {
   removeOrphanNodes(net);
 }
 
+/**
+ * Remove a single physical segment from the network — cutting every route
+ * that traverses it, rather than deleting the whole line. A route cut in the
+ * middle splits into two (the far side becomes a new route with its own id);
+ * cut at either end just trims that route by one segment.
+ */
+export function deleteSegment(net: Network, segId: Id): void {
+  const seg = net.segments[segId];
+  if (!seg) return;
+  const { a, b } = seg;
+  const nextRoutes: Route[] = [];
+  for (const route of net.routes) {
+    const ids = route.nodeIds;
+    let cut = -1;
+    for (let i = 0; i + 1 < ids.length; i++) {
+      if ((ids[i] === a && ids[i + 1] === b) || (ids[i] === b && ids[i + 1] === a)) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut === -1) {
+      nextRoutes.push(route);
+      continue;
+    }
+    const before = ids.slice(0, cut + 1);
+    const after = ids.slice(cut + 1);
+    if (before.length >= 2) nextRoutes.push({ ...route, nodeIds: before });
+    if (after.length >= 2) {
+      const keepOriginalId = before.length < 2; // only one surviving piece -> it keeps the route's identity
+      nextRoutes.push({
+        ...route,
+        id: keepOriginalId ? route.id : newId("r"),
+        name: keepOriginalId ? route.name : `${route.name} (2)`,
+        nodeIds: after,
+      });
+    }
+  }
+  net.routes = nextRoutes;
+  for (const route of net.routes) {
+    for (let i = 0; i + 1 < route.nodeIds.length; i++) {
+      ensureSegment(net, route.nodeIds[i], route.nodeIds[i + 1], route.defaults);
+    }
+  }
+  pruneSegments(net);
+  removeOrphanNodes(net);
+}
+
 /** Drop nodes not referenced by any route (keeps the graph tidy). */
 export function removeOrphanNodes(net: Network): void {
   const used = new Set<Id>();

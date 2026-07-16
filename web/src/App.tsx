@@ -22,6 +22,7 @@ import {
   deleteNodeFromNetwork,
   deletePolyVertex,
   deleteRoute,
+  deleteSegment,
   findNodeNear,
   insertNodeInSegment,
   insertPolyVertex,
@@ -29,7 +30,6 @@ import {
   moveNode,
   movePolyVertex,
   newId,
-  routesUsingSegment,
 } from "./edit/model";
 
 const SNAP_TOL = 6; // blocks — click within this of a point to connect to it
@@ -225,17 +225,12 @@ export default function App() {
         overlays.updateNetwork(sel.net, (n) => deleteRoute(n, sel.id));
         setEdit((e) => ({ ...e, selection: null }));
       } else if (sel.type === "segment") {
-        // Finishing a route often leaves its last segment selected rather than
-        // the route itself (the closing click lands on the segment, not the
-        // route). Delete only when the segment belongs to a single route —
-        // with multiple routes sharing it, which one to delete is ambiguous,
-        // so leave that to the Inspector's per-route Delete button instead.
-        const routes = routesUsingSegment(overlays.network(sel.net), sel.id);
-        if (routes.length === 1) {
-          ev.preventDefault();
-          overlays.updateNetwork(sel.net, (n) => deleteRoute(n, routes[0].id));
-          setEdit((e) => ({ ...e, selection: null }));
-        }
+        // Cuts just this segment (trimming or splitting whichever route(s) use
+        // it) rather than deleting a whole line — see the Inspector's separate
+        // "Delete line" (whole route) vs "Delete segment" (this piece) buttons.
+        ev.preventDefault();
+        overlays.updateNetwork(sel.net, (n) => deleteSegment(n, sel.id));
+        setEdit((e) => ({ ...e, selection: null }));
       }
     };
     window.addEventListener("keydown", onKey);

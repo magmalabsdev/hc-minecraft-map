@@ -25,6 +25,7 @@ import {
   deleteNodeFromNetwork,
   deletePolyVertex,
   deleteRoute,
+  deleteSegment,
   deleteStation,
   deleteStationEntrance,
   moveNode,
@@ -394,7 +395,7 @@ function RouteSection(p: {
                 p.clear();
               }}
             >
-              Delete
+              Delete line
             </button>
           </div>
           {p.net === "railway" && (
@@ -413,7 +414,13 @@ function RouteSection(p: {
 
 // --- one shared segment ---
 
-function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; editable: boolean }) {
+function SegmentSection(p: {
+  overlays: Overlays;
+  net: LineKind;
+  segId: Id;
+  editable: boolean;
+  clear: () => void;
+}) {
   const net = p.overlays.network(p.net);
   const seg = net.segments[p.segId];
   if (!seg) return null;
@@ -544,6 +551,18 @@ function SegmentSection(p: { overlays: Overlays; net: LineKind; segId: Id; edita
         Shared by {users.length} route{users.length === 1 ? "" : "s"}
         {users.length ? `: ${users.map((r) => r.name).join(", ")}` : ""}. A disruption shows on all of them.
       </p>
+      {p.editable && (
+        <button
+          className="danger"
+          style={{ width: "100%", marginTop: 8 }}
+          onClick={() => {
+            p.overlays.updateNetwork(p.net, (n) => deleteSegment(n, p.segId));
+            p.clear();
+          }}
+        >
+          Delete segment
+        </button>
+      )}
     </div>
   );
 }
@@ -578,7 +597,7 @@ function SegmentPanel(p: {
         <RouteSection overlays={p.overlays} net={p.net} routeId={chosen.id} editable={p.editable} setEdit={p.setEdit} clear={p.clear} />
       )}
       <hr className="insp-sep" />
-      <SegmentSection overlays={p.overlays} net={p.net} segId={p.segId} editable={p.editable} />
+      <SegmentSection overlays={p.overlays} net={p.net} segId={p.segId} editable={p.editable} clear={p.clear} />
     </>
   );
 }
