@@ -33,3 +33,9 @@ export const CONTOUR_INTERVAL = 8;
  * resolution (1 sample/block); higher trades detail for speed & file size.
  */
 export const CONTOUR_DOWNSAMPLE = 4;
+
+/** The SMP's world seed, used to reverse-engineer biome placement (see biome.ts). */
+export const WORLD_SEED = -4475792576490886961n;
+
+/** Block span of one solid-color cell in the biome map. */
+export const BIOME_CELL_SIZE = 50;

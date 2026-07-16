@@ -320,6 +320,9 @@ export default function App() {
             <button className={mode === "minimal2d" ? "active" : ""} onClick={() => setMode("minimal2d")}>
               Minimal 2D
             </button>
+            <button className={mode === "biome" ? "active" : ""} onClick={() => setMode("biome")}>
+              Biome
+            </button>
           </div>
         </section>
 

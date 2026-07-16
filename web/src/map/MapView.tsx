@@ -32,7 +32,7 @@ import {
   snapshotTileUrlTemplate,
 } from "../api";
 
-export type BaseMode = "landscape2d" | "contour2d" | "minimal2d";
+export type BaseMode = "landscape2d" | "contour2d" | "minimal2d" | "biome";
 
 export interface MapViewProps {
   dimension: Dimension;
@@ -59,6 +59,7 @@ const SPAWN = { x: -182, z: 27 };
 function baseVariant(mode: BaseMode): BaseVariant {
   if (mode === "minimal2d") return "minimal";
   if (mode === "contour2d") return "bands";
+  if (mode === "biome") return "biome";
   return "terrain";
 }
 
@@ -160,7 +161,9 @@ export function MapView(props: MapViewProps) {
             ? "base-minimal"
             : baseMode === "contour2d"
               ? "base-bands"
-              : "base-terrain",
+              : baseMode === "biome"
+                ? "base-biome"
+                : "base-terrain",
       });
       layer.addTo(map);
       layer.bringToBack();

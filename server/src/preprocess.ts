@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { PNG } from "pngjs";
 import { contours as d3contours } from "d3-contour";
+import type { Climate } from "deepslate";
 import {
   blockToLowresTileIndex,
   decodeHeight,
@@ -9,11 +10,14 @@ import {
   type Dimension,
 } from "@hcmap/shared";
 import {
+  BIOME_CELL_SIZE,
   CONTOUR_DOWNSAMPLE,
   CONTOUR_INTERVAL,
   SNAPSHOT_DIR,
   UPSTREAM,
+  WORLD_SEED,
 } from "./config";
+import { classifyBiome, climateSampler, sampleClimate, URBAN_COLOR } from "./biome";
 
 export interface Region {
   dimension: Dimension;
@@ -146,6 +150,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   await fs.mkdir(path.join(dimDir, "terrain"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "minimal"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "bands"), { recursive: true });
+  await fs.mkdir(path.join(dimDir, "biome"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "derived"), { recursive: true });
 
   const tileCoords: { tx: number; tz: number }[] = [];
@@ -154,6 +159,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
 
   let written = 0;
   let empty = 0;
+  const sampler = climateSampler(WORLD_SEED);
 
   await pool(tileCoords, 6, async ({ tx, tz }) => {
     const png = await fetchTilePng(dim, tx, tz);
@@ -223,9 +229,12 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
         }
       }
     }
+    const biome = buildBiomeTile(colorPng, sampler, tx * S, tz * S);
+
     await writeTile(dimDir, "terrain", 0, tx, tz, colorPng);
     await writeTile(dimDir, "minimal", 0, tx, tz, minimal);
     await writeTile(dimDir, "bands", 0, tx, tz, bands);
+    await writeTile(dimDir, "biome", 0, tx, tz, biome);
     written++;
   });
 
@@ -236,6 +245,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   const bounds = { xMin: txMin, xMax: txMax, yMin: tzMin, yMax: tzMax };
   await generateOverviews(dimDir, "terrain", bounds, maxLevel);
   await generateOverviews(dimDir, "bands", bounds, maxLevel);
+  await generateOverviews(dimDir, "biome", bounds, maxLevel);
   const minNativeZoom = await generateOverviews(dimDir, "minimal", bounds, maxLevel);
 
   // --- contours ---
@@ -283,7 +293,119 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   };
 }
 
-type TileKind = "terrain" | "minimal" | "bands";
+type TileKind = "terrain" | "minimal" | "bands" | "biome";
+
+const BIOME_CELLS_PER_TILE = LOWRES_TILE_SIZE / BIOME_CELL_SIZE;
+
+// Heuristic thresholds for flagging a cell as "Urban": a concentration of
+// blocks whose color doesn't fit natural terrain's smooth, few-color palette
+// (sharp edges + many distinct materials, the way built structures read
+// against BlueMap's surface render). Untuned against ground truth — adjust if
+// real villages/bases end up under- or over-flagged.
+// Calibrated against the mirrored snapshot: sampled distinct-color/edge-density
+// values for every 50-block cell across ~1900 native tiles (spawn's known
+// builds vs. the rest of the explored map). distinct>42 & edge>0.35 isolated
+// spawn's built-up cells (11 flagged in its tile) while flagging only ~0.07%
+// of cells elsewhere — see conversation history for the calibration data.
+const URBAN_COLOR_THRESHOLD = 42; // distinct quantized colors within a cell
+const URBAN_EDGE_FRACTION = 0.35; // fraction of hard color-edges within a cell
+const URBAN_NEIGHBOR_FRACTION = 0.4; // fraction of a cell's 3x3 neighborhood also flagged
+
+/**
+ * Render a tile's biome background: real vanilla climate noise (from the
+ * seed) picks each cell's natural biome color, unless the cell — together
+ * with a concentrated neighborhood around it — looks unnatural by color
+ * (villages, player builds), in which case it's painted grey ("Urban").
+ */
+function buildBiomeTile(
+  colorPng: PNG,
+  sampler: Climate.Sampler,
+  originX: number,
+  originZ: number,
+): PNG {
+  const S = colorPng.width;
+  const n = BIOME_CELLS_PER_TILE;
+  const distinct: Set<number>[] = Array.from({ length: n * n }, () => new Set());
+  const edges = new Int32Array(n * n);
+  const totals = new Int32Array(n * n);
+
+  for (let pz = 0; pz < S; pz++) {
+    for (let px = 0; px < S; px++) {
+      const oi = idx(px, pz, S);
+      const cellIdx = Math.floor(pz / BIOME_CELL_SIZE) * n + Math.floor(px / BIOME_CELL_SIZE);
+      const r = colorPng.data[oi];
+      const g = colorPng.data[oi + 1];
+      const b = colorPng.data[oi + 2];
+      totals[cellIdx]++;
+      distinct[cellIdx].add(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+      if (px > 0) {
+        const li = oi - 4;
+        const delta =
+          Math.abs(r - colorPng.data[li]) +
+          Math.abs(g - colorPng.data[li + 1]) +
+          Math.abs(b - colorPng.data[li + 2]);
+        if (delta > 40) edges[cellIdx]++;
+      }
+      if (pz > 0) {
+        const ti = oi - S * 4;
+        const delta =
+          Math.abs(r - colorPng.data[ti]) +
+          Math.abs(g - colorPng.data[ti + 1]) +
+          Math.abs(b - colorPng.data[ti + 2]);
+        if (delta > 40) edges[cellIdx]++;
+      }
+    }
+  }
+
+  const flagged = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    flagged[i] =
+      distinct[i].size > URBAN_COLOR_THRESHOLD && edges[i] > totals[i] * URBAN_EDGE_FRACTION ? 1 : 0;
+  }
+
+  const urban = new Uint8Array(n * n);
+  for (let cz = 0; cz < n; cz++) {
+    for (let cx = 0; cx < n; cx++) {
+      let sum = 0;
+      let count = 0;
+      for (let dz = -1; dz <= 1; dz++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx;
+          const nz = cz + dz;
+          if (nx < 0 || nx >= n || nz < 0 || nz >= n) continue;
+          sum += flagged[nz * n + nx];
+          count++;
+        }
+      }
+      urban[cz * n + cx] = sum / count >= URBAN_NEIGHBOR_FRACTION ? 1 : 0;
+    }
+  }
+
+  const out = new PNG({ width: S, height: S });
+  for (let cz = 0; cz < n; cz++) {
+    for (let cx = 0; cx < n; cx++) {
+      const color = urban[cz * n + cx]
+        ? URBAN_COLOR
+        : classifyBiome(
+            sampleClimate(
+              sampler,
+              originX + cx * BIOME_CELL_SIZE + BIOME_CELL_SIZE / 2,
+              originZ + cz * BIOME_CELL_SIZE + BIOME_CELL_SIZE / 2,
+            ),
+          ).color;
+      for (let pz = cz * BIOME_CELL_SIZE; pz < cz * BIOME_CELL_SIZE + BIOME_CELL_SIZE; pz++) {
+        for (let px = cx * BIOME_CELL_SIZE; px < cx * BIOME_CELL_SIZE + BIOME_CELL_SIZE; px++) {
+          const oi = idx(px, pz, S);
+          out.data[oi] = color[0];
+          out.data[oi + 1] = color[1];
+          out.data[oi + 2] = color[2];
+          out.data[oi + 3] = colorPng.data[oi + 3];
+        }
+      }
+    }
+  }
+  return out;
+}
 
 async function writeTile(
   dimDir: string,
