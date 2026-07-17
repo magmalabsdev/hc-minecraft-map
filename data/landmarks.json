@@ -1300,6 +1300,192 @@
       "color": "#e8c14a",
       "shape": "marker",
       "icon": "oak_log"
+    },
+    {
+      "id": "l_mro61cev1g",
+      "name": "Dongshan Arena",
+      "polygon": [
+        {
+          "x": 350,
+          "z": 25
+        },
+        {
+          "x": 350,
+          "z": 75
+        },
+        {
+          "x": 450,
+          "z": 75
+        },
+        {
+          "x": 450,
+          "z": 25
+        }
+      ],
+      "color": "#cd910e",
+      "shape": "polygon",
+      "icon": "diamond"
+    },
+    {
+      "id": "l_mro6phgr1m",
+      "name": "Dongshan Park",
+      "polygon": [
+        {
+          "x": 350,
+          "z": 25
+        },
+        {
+          "x": 450,
+          "z": 25
+        },
+        {
+          "x": 450,
+          "z": 31
+        },
+        {
+          "x": 469,
+          "z": 31
+        },
+        {
+          "x": 469,
+          "z": 46
+        },
+        {
+          "x": 501,
+          "z": 46
+        },
+        {
+          "x": 501,
+          "z": 91
+        },
+        {
+          "x": 509,
+          "z": 91
+        },
+        {
+          "x": 509,
+          "z": 28
+        },
+        {
+          "x": 473,
+          "z": 28
+        },
+        {
+          "x": 473,
+          "z": 4
+        },
+        {
+          "x": 323,
+          "z": 4
+        },
+        {
+          "x": 323,
+          "z": 25
+        }
+      ],
+      "color": "#06a73f",
+      "shape": "polygon",
+      "icon": "oak_log"
+    },
+    {
+      "id": "l_mroacqjj7",
+      "name": "Building 1 4-5F",
+      "polygon": [
+        {
+          "x": 453,
+          "z": 49
+        },
+        {
+          "x": 453,
+          "z": 63
+        },
+        {
+          "x": 501,
+          "z": 63
+        },
+        {
+          "x": 501,
+          "z": 49
+        }
+      ],
+      "color": "#4a90d9",
+      "shape": "polygon",
+      "icon": "diamond_ore"
+    },
+    {
+      "id": "l_mroad0ed9",
+      "name": "Cafe",
+      "polygon": [
+        {
+          "x": 453,
+          "z": 34
+        },
+        {
+          "x": 453,
+          "z": 46
+        },
+        {
+          "x": 466,
+          "z": 46
+        },
+        {
+          "x": 466,
+          "z": 34
+        }
+      ],
+      "color": "#d94a4a",
+      "shape": "polygon",
+      "icon": "apple"
+    },
+    {
+      "id": "l_mroadxf9b",
+      "name": "Building 2 (8-9F)",
+      "polygon": [
+        {
+          "x": 453,
+          "z": 66
+        },
+        {
+          "x": 453,
+          "z": 91
+        },
+        {
+          "x": 472,
+          "z": 91
+        },
+        {
+          "x": 472,
+          "z": 66
+        }
+      ],
+      "color": "#4a90d9",
+      "shape": "polygon",
+      "icon": "diamond"
+    },
+    {
+      "id": "l_mroaek45d",
+      "name": "Building 3 (12-13F)",
+      "polygon": [
+        {
+          "x": 477,
+          "z": 91
+        },
+        {
+          "x": 477,
+          "z": 66
+        },
+        {
+          "x": 501,
+          "z": 66
+        },
+        {
+          "x": 501,
+          "z": 91
+        }
+      ],
+      "color": "#4a90d9",
+      "shape": "polygon",
+      "icon": "diamond"
     }
   ]
 }

@@ -1,24 +1,24 @@
 {
   "dimension": "world",
-  "generatedAt": "2026-07-15T23:01:03.317Z",
+  "generatedAt": "2026-07-17T00:29:46.536Z",
   "tileSize": 500,
   "tiles": {
-    "txMin": -2,
-    "txMax": 1,
-    "tzMin": -2,
-    "tzMax": 1
+    "txMin": -30,
+    "txMax": 30,
+    "tzMin": -30,
+    "tzMax": 30
   },
   "bbox": {
     "dimension": "world",
-    "minX": -600,
-    "minZ": -600,
-    "maxX": 600,
-    "maxZ": 600
+    "minX": -15000,
+    "minZ": -15000,
+    "maxX": 15000,
+    "maxZ": 15000
   },
   "heightRange": [
-    -59,
-    310
+    -62,
+    319
   ],
   "contourInterval": 8,
-  "minNativeZoom": -2
+  "minNativeZoom": -6
 }

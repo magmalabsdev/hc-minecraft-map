@@ -80,6 +80,7 @@ export interface OverlayHandlers {
   onInsertNode: (net: LineKind, segId: Id, x: number, z: number) => void;
   onMovePolyVertex: (target: PolyTarget, index: number, x: number, z: number) => void;
   onInsertPolyVertex: (target: PolyTarget, edgeIndex: number, x: number, z: number) => void;
+  onMoveStationEntrance: (stationId: Id, entranceId: Id, x: number, z: number) => void;
 }
 
 export interface OverlayRenderOpts {
@@ -431,10 +432,13 @@ function pushNetwork(
     const tunnelNote = props.tunnelY !== undefined ? `<br>⛏ Tunnel Y ${props.tunnelY}` : "";
     let tip: string;
     if (rail) {
-      // Rail: line name(s) + termini (the physical width/paving is irrelevant).
+      // Rail: line name(s) + operator + termini (the physical width/paving is irrelevant).
       const body = usingRoutes.length
         ? usingRoutes
-            .map((r) => `<b>${escape(r.name)}</b><br>${railTermini(r, net)}`)
+            .map((r) => {
+              const operator = r.operator ? `<br>${escape(r.operator)}` : "";
+              return `<b>${escape(r.name)}</b>${operator}<br>${railTermini(r, net)}`;
+            })
             .join("<br><br>")
         : "<b>Railway</b>";
       tip = body + tunnelNote + (disrupt ? `<br>${disrupt}` : "") + (planned ? "<br>🚧 Planned — not yet built" : "");
@@ -721,10 +725,12 @@ function pushStationLike(
   for (const en of st.entrances ?? []) {
     const enMarker = L.marker(blockToLatLng(en.point.x, en.point.z), {
       opacity: planned ? 0.45 : 1,
+      draggable: opts.edit.enabled,
+      zIndexOffset: 1000, // always above the station's own body/marker at the same spot
       icon: L.divIcon({
         className: "access-marker",
-        html: `<div class="access-badge ${en.kind}">${accessGlyph(en.kind)}</div>`,
-        iconSize: [16, 16],
+        html: `<div class="access-marker-row"><div class="access-badge ${en.kind}">${accessGlyph(en.kind)}</div><span class="access-label">${escape(en.name)}</span></div>`,
+        iconSize: [200, 16],
         iconAnchor: [8, 8],
       }),
     });
@@ -733,6 +739,13 @@ function pushStationLike(
       L.DomEvent.stop(e);
       opts.handlers.onSelect({ type: "station", id: st.id });
     });
+    if (opts.edit.enabled) {
+      enMarker.on("drag", snapMarkerToBlock);
+      enMarker.on("dragend", (e) => {
+        const ll = (e.target as L.Marker).getLatLng();
+        opts.handlers.onMoveStationEntrance(st.id, en.id, ll.lng, ll.lat);
+      });
+    }
     layers.push(enMarker);
   }
 }

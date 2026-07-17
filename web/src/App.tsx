@@ -29,6 +29,7 @@ import {
   mergeNodes,
   moveNode,
   movePolyVertex,
+  moveStationEntrance,
   newId,
 } from "./edit/model";
 
@@ -198,6 +199,13 @@ export default function App() {
       onInsertPolyVertex: (target, edgeIndex, x, z) => {
         applyPolyTarget(target, (poly) => insertPolyVertex(poly, edgeIndex, x, z));
         setEdit((e) => ({ ...e, selection: { type: "vertex", target, index: edgeIndex + 1 } }));
+      },
+      onMoveStationEntrance: (stationId, entranceId, x, z) => {
+        overlays.updateNetwork("railway", (n) => {
+          if (n.kind !== "railway") return;
+          const s = n.stations.find((x) => x.id === stationId);
+          if (s) moveStationEntrance(s, entranceId, x, z);
+        });
       },
     }),
     [edit, overlays, applyPolyTarget],

@@ -39,3 +39,13 @@ export const WORLD_SEED = -4475792576490886961n;
 
 /** Block span of one solid-color cell in the biome map. */
 export const BIOME_CELL_SIZE = 50;
+
+/**
+ * Sub-pixels per block rendered into the "bands" (Terrain 2D) tile, so a
+ * smaller inner dot showing the exact ones-digit can be nested inside each
+ * block's resistor-band color. Must be a power of 2 (the overview pyramid
+ * normalizes it back down via repeated halving). Kept small (2 = a single
+ * corner sub-pixel) since the fine per-block texture this creates compresses
+ * far worse than the original smooth solid-color bands tiles.
+ */
+export const BANDS_SUPERSAMPLE = 2;

@@ -12,6 +12,7 @@ import {
   type Dimension,
 } from "@hcmap/shared";
 import {
+  BANDS_SUPERSAMPLE,
   BIOME_CELL_SIZE,
   CONTOUR_DOWNSAMPLE,
   CONTOUR_INTERVAL,
@@ -163,7 +164,13 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
 
     const colorPng = new PNG({ width: S, height: S });
     const minimal = new PNG({ width: S, height: S });
-    const bands = new PNG({ width: S, height: S });
+    const N = BANDS_SUPERSAMPLE;
+    const bandsSize = S * N;
+    const bands = new PNG({ width: bandsSize, height: bandsSize });
+    // Sub-pixel rows/cols making up the smaller inner dot (the bottom-right
+    // corner of each block's N x N cell), e.g. N=2 -> just index 1.
+    const innerLo = Math.floor(N / 2);
+    const innerHi = N;
 
     for (let pz = 0; pz < S; pz++) {
       for (let px = 0; px < S; px++) {
@@ -180,12 +187,24 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
         colorPng.data[oi + 2] = data[ci + 2];
         colorPng.data[oi + 3] = data[ci + 3];
 
-        // resistor-code elevation band output
+        // Resistor-code elevation band output: the block's N x N cell is
+        // filled with the tens-digit band color, except a smaller corner dot
+        // showing the ones digit's own resistor color directly — so at close
+        // range every single Y level reads off exactly, while at native/
+        // zoomed-out resolution it blends back into the block color.
         const [br, bg, bb] = bandColor(h);
-        bands.data[oi] = br;
-        bands.data[oi + 1] = bg;
-        bands.data[oi + 2] = bb;
-        bands.data[oi + 3] = data[ci + 3];
+        const [dr, dg, db] = RESISTOR_COLORS[digitBands(h).ones];
+        const alpha = data[ci + 3];
+        for (let sz = 0; sz < N; sz++) {
+          for (let sx = 0; sx < N; sx++) {
+            const inner = sx >= innerLo && sx < innerHi && sz >= innerLo && sz < innerHi;
+            const oi2 = idx(px * N + sx, pz * N + sz, bandsSize);
+            bands.data[oi2] = inner ? dr : br;
+            bands.data[oi2 + 1] = inner ? dg : bg;
+            bands.data[oi2 + 2] = inner ? db : bb;
+            bands.data[oi2 + 3] = alpha;
+          }
+        }
 
         // hillshade from the +x / +z neighbours (overlap row/col covers edges)
         const hx = decodeHeight(
@@ -453,6 +472,15 @@ function downsampleHalf(src: PNG): PNG {
   return out;
 }
 
+/** Repeatedly halve until reaching `target` — normalizes an oversized tile
+ *  (e.g. the supersampled "bands" native tile) back to the standard S x S
+ *  before it enters the regular overview-halving pipeline below. */
+function downsampleToSize(src: PNG, target: number): PNG {
+  let cur = src;
+  while (cur.width > target) cur = downsampleHalf(cur);
+  return cur;
+}
+
 function blit(dst: PNG, src: PNG, ox: number, oy: number): void {
   for (let y = 0; y < src.height; y++) {
     for (let x = 0; x < src.width; x++) {
@@ -497,7 +525,10 @@ async function generateOverviews(
             const child = await readTile(dimDir, kind, prevZ, X * 2 + dx, Y * 2 + dy);
             if (!child) continue;
             any = true;
-            blit(parent, downsampleHalf(child), dx * (S >> 1), dy * (S >> 1));
+            // The "bands" native tile is supersampled (bigger than S x S) for
+            // its close-range inner dots; normalize before the standard halving.
+            const normalized = child.width === S ? child : downsampleToSize(child, S);
+            blit(parent, downsampleHalf(normalized), dx * (S >> 1), dy * (S >> 1));
           }
         }
         if (any) await writeTile(dimDir, kind, curZ, X, Y, parent);

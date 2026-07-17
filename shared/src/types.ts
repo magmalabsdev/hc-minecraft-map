@@ -107,6 +107,8 @@ export interface Route {
   nodeIds: Id[];
   /** Display color for the route (rail lines especially). */
   color?: string;
+  /** Railway-only: the company operating this line. */
+  operator?: string;
   /** Defaults used to seed newly-created segments while editing this route. */
   defaults: SegmentProps;
 }

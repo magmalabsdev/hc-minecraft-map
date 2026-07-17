@@ -508,7 +508,15 @@ button.danger {
 }
 
 /* --- station entrance/exit markers --- */
+.access-marker-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: grab;
+}
 .access-marker .access-badge {
+  flex: 0 0 auto;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -523,6 +531,15 @@ button.danger {
 .access-badge.entrance { background: #2ecc71; }
 .access-badge.exit { background: #ff6b6b; }
 .access-badge.both { background: #f2c94c; }
+.access-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(20, 22, 26, 0.75);
+  padding: 1px 5px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
 
 /* --- tunnel view crossing markers (hollow, grade-separated) --- */
 .crossing-marker .crossing-badge {

@@ -264,6 +264,17 @@ function RouteSection(p: {
           />
         </label>
       </div>
+      {p.net === "railway" && (
+        <label className="stack">
+          Operating company
+          <input
+            disabled={!p.editable}
+            placeholder="e.g. Magma Labs Transit"
+            value={route.operator ?? ""}
+            onChange={(e) => patch((r) => (r.operator = e.target.value === "" ? undefined : e.target.value))}
+          />
+        </label>
+      )}
       <div className="badges">
         <span className={`badge ${v.isLoop ? "loop" : "line"}`}>{v.isLoop ? "Loop" : "Line"}</span>
         <span className={`badge ${v.ok ? "ok" : "bad"}`}>{v.ok ? "valid" : "invalid"}</span>

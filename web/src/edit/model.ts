@@ -443,3 +443,8 @@ export function deleteStationEntrance(station: Station, id: Id): void {
   if (!station.entrances) return;
   station.entrances = station.entrances.filter((e) => e.id !== id);
 }
+
+export function moveStationEntrance(station: Station, id: Id, x: number, z: number): void {
+  const en = station.entrances?.find((e) => e.id === id);
+  if (en) en.point = { x: Math.round(x), z: Math.round(z) };
+}

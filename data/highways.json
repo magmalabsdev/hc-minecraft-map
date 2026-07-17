@@ -1624,11 +1624,12 @@
       "flat": true,
       "lit": true,
       "disruption": {
-        "active": true,
+        "active": false,
         "width": 5,
         "flat": true,
         "lit": false,
-        "note": ""
+        "note": "",
+        "type": "construction"
       },
       "paved": true,
       "built": true,
@@ -1642,8 +1643,9 @@
       "flat": true,
       "lit": true,
       "disruption": {
-        "active": true,
-        "lit": false
+        "active": false,
+        "lit": false,
+        "type": "construction"
       },
       "paved": true,
       "built": true,
@@ -1657,8 +1659,9 @@
       "flat": true,
       "lit": true,
       "disruption": {
-        "active": true,
-        "lit": false
+        "active": false,
+        "lit": false,
+        "type": "construction"
       },
       "paved": true,
       "built": true,
@@ -1673,7 +1676,7 @@
       "lit": true,
       "paved": true,
       "disruption": {
-        "active": true,
+        "active": false,
         "type": "construction"
       },
       "built": true,
@@ -2064,11 +2067,12 @@
       "flat": true,
       "lit": true,
       "disruption": {
-        "active": true,
+        "active": false,
         "width": 5,
         "flat": true,
         "lit": false,
-        "note": "Planned"
+        "note": "Planned",
+        "type": "construction"
       },
       "paved": true,
       "built": true,
@@ -2082,11 +2086,12 @@
       "flat": true,
       "lit": true,
       "disruption": {
-        "active": true,
+        "active": false,
         "flat": true,
         "lit": false,
         "width": 5,
-        "note": ""
+        "note": "",
+        "type": "construction"
       },
       "paved": true,
       "built": true,
@@ -2612,7 +2617,8 @@
       "flat": false,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 68
     },
     "n_mrjx8fulc::n_mrjx8hhje": {
       "id": "n_mrjx8fulc::n_mrjx8hhje",
@@ -2622,7 +2628,8 @@
       "flat": false,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 68
     },
     "n_mrjnvjyb1q::n_mrjx963mh": {
       "id": "n_mrjnvjyb1q::n_mrjx963mh",
@@ -2632,7 +2639,8 @@
       "flat": true,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 67
     },
     "n_mrjnvjyb1q::n_mrjx9aghj": {
       "id": "n_mrjnvjyb1q::n_mrjx9aghj",
@@ -2642,7 +2650,8 @@
       "flat": true,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 67
     },
     "n_mrjx9aghj::n_mrjx9bg8l": {
       "id": "n_mrjx9aghj::n_mrjx9bg8l",
@@ -2652,7 +2661,8 @@
       "flat": true,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 67
     },
     "n_mrjx8hhje::n_mrjx9bg8l": {
       "id": "n_mrjx8hhje::n_mrjx9bg8l",
@@ -2662,7 +2672,8 @@
       "flat": true,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 67
     },
     "n_mrjnzxs52j::n_mrjx8hhje": {
       "id": "n_mrjnzxs52j::n_mrjx8hhje",
@@ -2672,7 +2683,8 @@
       "flat": true,
       "lit": true,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 67
     },
     "n_mrjxagv5o::n_mrjxakmnq": {
       "id": "n_mrjxagv5o::n_mrjxakmnq",
@@ -2726,7 +2738,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjoh6po8n::n_mrjxcc7d11": {
       "id": "n_mrjoh6po8n::n_mrjxcc7d11",
@@ -2736,7 +2749,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcc7d11::n_mrjxce7613": {
       "id": "n_mrjxcc7d11::n_mrjxce7613",
@@ -2746,7 +2760,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxce7613::n_mrjxcfq215": {
       "id": "n_mrjxce7613::n_mrjxcfq215",
@@ -2756,7 +2771,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcfq215::n_mrjxchf417": {
       "id": "n_mrjxcfq215::n_mrjxchf417",
@@ -2766,7 +2782,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxchf417::n_mrjxcj2g19": {
       "id": "n_mrjxchf417::n_mrjxcj2g19",
@@ -2776,7 +2793,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjx963mh::n_mrjxcj2g19": {
       "id": "n_mrjx963mh::n_mrjxcj2g19",
@@ -2786,7 +2804,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjx963mh::n_mrjxclbn1b": {
       "id": "n_mrjx963mh::n_mrjxclbn1b",
@@ -2796,7 +2815,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxclbn1b::n_mrjxcnbg1d": {
       "id": "n_mrjxclbn1b::n_mrjxcnbg1d",
@@ -2806,7 +2826,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcnbg1d::n_mrjxcsk51f": {
       "id": "n_mrjxcnbg1d::n_mrjxcsk51f",
@@ -2816,7 +2837,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcsk51f::n_mrjxctos1h": {
       "id": "n_mrjxcsk51f::n_mrjxctos1h",
@@ -2826,7 +2848,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxctos1h::n_mrjxcvlh1j": {
       "id": "n_mrjxctos1h::n_mrjxcvlh1j",
@@ -2836,7 +2859,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcvlh1j::n_mrjxcx6s1l": {
       "id": "n_mrjxcvlh1j::n_mrjxcx6s1l",
@@ -2846,7 +2870,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcx6s1l::n_mrjxcyjj1n": {
       "id": "n_mrjxcx6s1l::n_mrjxcyjj1n",
@@ -2856,7 +2881,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjxcyjj1n::n_mrjxd2ct1p": {
       "id": "n_mrjxcyjj1n::n_mrjxd2ct1p",
@@ -2866,7 +2892,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjohtng9b::n_mrjxd2ct1p": {
       "id": "n_mrjohtng9b::n_mrjxd2ct1p",
@@ -2876,7 +2903,8 @@
       "flat": true,
       "lit": false,
       "paved": true,
-      "built": true
+      "built": true,
+      "tunnelY": 70
     },
     "n_mrjnw2ew26::n_mrl9po522": {
       "id": "n_mrjnw2ew26::n_mrl9po522",
@@ -3681,7 +3709,8 @@
         "width": 8,
         "flat": false,
         "lit": false,
-        "paved": true
+        "paved": true,
+        "tunnelY": 68
       }
     },
     {
@@ -3700,7 +3729,8 @@
         "width": 3,
         "flat": true,
         "lit": true,
-        "paved": true
+        "paved": true,
+        "tunnelY": 67
       }
     },
     {
@@ -3749,7 +3779,8 @@
         "width": 8,
         "flat": true,
         "lit": false,
-        "paved": true
+        "paved": true,
+        "tunnelY": 70
       }
     },
     {
