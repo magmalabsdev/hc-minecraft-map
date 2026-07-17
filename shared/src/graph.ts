@@ -1,5 +1,6 @@
 import type {
   DisruptionType,
+  District,
   HighwayNetwork,
   Id,
   Node,
@@ -173,6 +174,14 @@ export function pointInPolygon(pt: Vec2, poly: Vec2[]): boolean {
     if (intersect) inside = !inside;
   }
   return inside;
+}
+
+/** The first district (by list order) whose polygon contains this point, if any. */
+export function districtAt(districts: District[], pt: Vec2): District | null {
+  for (const d of districts) {
+    if (d.polygon.length >= 3 && pointInPolygon(pt, d.polygon)) return d;
+  }
+  return null;
 }
 
 function polyCentroid(poly: Vec2[]): Vec2 {

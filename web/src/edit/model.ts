@@ -1,4 +1,6 @@
 import {
+  type District,
+  type DistrictCollection,
   type HighwayNetwork,
   type Id,
   type Landmark,
@@ -23,11 +25,12 @@ export type Tool =
   | "line"
   | "station"
   | "landmark-point"
-  | "landmark-area";
-export type ActiveLayer = LineKind | "landmark";
+  | "landmark-area"
+  | "district-area";
+export type ActiveLayer = LineKind | "landmark" | "district";
 
-/** A polygon we can edit vertices on (landmark area or railway station). */
-export type PolyTarget = { kind: "landmark" | "station"; id: Id };
+/** A polygon we can edit vertices on (landmark area, railway station, or district). */
+export type PolyTarget = { kind: "landmark" | "station" | "district"; id: Id };
 
 export type Selection =
   | { type: "node"; net: LineKind; id: Id }
@@ -35,6 +38,7 @@ export type Selection =
   | { type: "route"; net: LineKind; id: Id }
   | { type: "station"; id: Id }
   | { type: "landmark"; id: Id }
+  | { type: "district"; id: Id }
   | { type: "vertex"; target: PolyTarget; index: number }
   | null;
 
@@ -398,6 +402,24 @@ export function addAreaLandmark(doc: LandmarkCollection, polygon: Vec2[]): Id {
 
 export function deleteLandmark(doc: LandmarkCollection, id: Id): void {
   doc.landmarks = doc.landmarks.filter((l) => l.id !== id);
+}
+
+// --- districts ---
+
+export function addDistrict(doc: DistrictCollection, polygon: Vec2[]): Id {
+  const id = newId("d");
+  const district: District = {
+    id,
+    name: `District ${doc.districts.length + 1}`,
+    polygon: polygon.map((p) => ({ x: Math.round(p.x), z: Math.round(p.z) })),
+    color: ROUTE_COLORS[doc.districts.length % ROUTE_COLORS.length],
+  };
+  doc.districts.push(district);
+  return id;
+}
+
+export function deleteDistrict(doc: DistrictCollection, id: Id): void {
+  doc.districts = doc.districts.filter((d) => d.id !== id);
 }
 
 // --- railway stations ---

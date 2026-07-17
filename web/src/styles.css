@@ -183,6 +183,45 @@ button.active {
   border-radius: 8px;
 }
 
+/* --- resistor color key (Terrain 2D / Tunnel view) --- */
+.resistor-key {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: min(90vw, 640px);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+.resistor-key-swatches {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.resistor-key-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.resistor-key-caption {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--panel-muted);
+  line-height: 1.35;
+  text-align: center;
+}
+
 /* --- markers --- */
 .poi-marker .poi-dot {
   width: 12px;
@@ -381,6 +420,29 @@ button.danger {
 .lm-badge.diamond > * { transform: rotate(-45deg); }
 .lm-badge.polygon { border-radius: 50%; }
 .lm-badge.sel { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* --- districts --- */
+.district-label-text {
+  display: inline-block;
+  max-width: 200px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(20, 22, 26, 0.7);
+  border: 1.5px solid var(--c, #4a90d9);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.tip-district {
+  opacity: 0.75;
+  font-style: italic;
+}
 
 /* --- route finder --- */
 .panel-title {

@@ -180,6 +180,8 @@ export interface Landmark {
   /** A point landmark, OR a polygon area landmark (one of the two is set). */
   point?: Vec2;
   polygon?: Vec2[];
+  /** Area landmarks only: where its icon sits within the polygon (defaults to the centroid). Draggable independent of the shape. */
+  labelPos?: Vec2;
   color: string;
   shape: LandmarkShape;
   icon: LandmarkIcon;
@@ -187,6 +189,24 @@ export interface Landmark {
 
 export interface LandmarkCollection {
   landmarks: Landmark[];
+}
+
+/**
+ * A named geographic region drawn on the map (a neighborhood, borough, etc.).
+ * Purely organizational — landmarks and railway stations that fall inside a
+ * district's polygon show its name in their tooltip.
+ */
+export interface District {
+  id: Id;
+  name: string;
+  polygon: Vec2[];
+  /** Where its name tag sits within the polygon (defaults to the centroid). Draggable independent of the shape. */
+  labelPos?: Vec2;
+  color?: string;
+}
+
+export interface DistrictCollection {
+  districts: District[];
 }
 
 /** Convenience empty documents used to seed new data files. */
@@ -200,4 +220,8 @@ export function emptyRailwayNetwork(): RailwayNetwork {
 
 export function emptyLandmarks(): LandmarkCollection {
   return { landmarks: [] };
+}
+
+export function emptyDistricts(): DistrictCollection {
+  return { districts: [] };
 }

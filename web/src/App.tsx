@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DIMENSIONS, type Dimension } from "@hcmap/shared";
 import { MapView, type BaseMode } from "./map/MapView";
+import { ResistorKey } from "./map/ResistorKey";
 import type { OverlayToggles, OverlayHandlers } from "./map/renderOverlays";
 import { type BackendStatus, checkBackend } from "./api";
 import { useOverlays } from "./data/useOverlays";
@@ -14,6 +15,7 @@ import {
   type Selection,
   type Tool,
   addAreaLandmark,
+  addDistrict,
   addNodeAt,
   addPointLandmark,
   addStation,
@@ -47,6 +49,7 @@ export default function App() {
     highway: true,
     railway: true,
     landmark: true,
+    district: true,
   });
   const [backend, setBackend] = useState<BackendStatus>({
     available: false,
@@ -81,6 +84,12 @@ export default function App() {
           });
           setEdit((e) => ({ ...e, selection: { type: "landmark", id } }));
         } else if (edit.tool === "landmark-area") {
+          setEdit((e) => ({ ...e, draftPolygon: [...e.draftPolygon, { x, z }] }));
+        }
+        return;
+      }
+      if (edit.layer === "district") {
+        if (edit.tool === "district-area") {
           setEdit((e) => ({ ...e, draftPolygon: [...e.draftPolygon, { x, z }] }));
         }
         return;
@@ -121,6 +130,13 @@ export default function App() {
         id = addAreaLandmark(d, poly);
       });
       setEdit((e) => ({ ...e, draftPolygon: [], selection: { type: "landmark", id } }));
+    } else if (edit.tool === "district-area" && edit.draftPolygon.length >= 3) {
+      let id = "";
+      const poly = edit.draftPolygon;
+      overlays.updateDistricts((d) => {
+        id = addDistrict(d, poly);
+      });
+      setEdit((e) => ({ ...e, draftPolygon: [], selection: { type: "district", id } }));
     } else if (edit.tool === "station" && edit.draftPolygon.length >= 3) {
       let id = "";
       const poly = edit.draftPolygon;
@@ -137,6 +153,11 @@ export default function App() {
         overlays.updateLandmarks((doc) => {
           const l = doc.landmarks.find((x) => x.id === target.id);
           if (l?.polygon) fn(l.polygon);
+        });
+      } else if (target.kind === "district") {
+        overlays.updateDistricts((doc) => {
+          const d = doc.districts.find((x) => x.id === target.id);
+          if (d) fn(d.polygon);
         });
       } else {
         overlays.updateNetwork("railway", (n) => {
@@ -207,6 +228,24 @@ export default function App() {
           if (s) moveStationEntrance(s, entranceId, x, z);
         });
       },
+      onMoveLandmark: (id, x, z) => {
+        overlays.updateLandmarks((doc) => {
+          const lm = doc.landmarks.find((l) => l.id === id);
+          if (!lm) return;
+          if (lm.point) {
+            lm.point = { x: Math.round(x), z: Math.round(z) };
+          } else if (lm.polygon) {
+            lm.labelPos = { x: Math.round(x), z: Math.round(z) };
+          }
+        });
+      },
+      onMoveDistrict: (id, x, z) => {
+        overlays.updateDistricts((doc) => {
+          const d = doc.districts.find((x2) => x2.id === id);
+          if (!d) return;
+          d.labelPos = { x: Math.round(x), z: Math.round(z) };
+        });
+      },
     }),
     [edit, overlays, applyPolyTarget],
   );
@@ -265,7 +304,11 @@ export default function App() {
   }
 
   const canEdit = backend.editable;
-  const anyDirty = overlays.dirty.highways || overlays.dirty.railways || overlays.dirty.landmarks;
+  const anyDirty =
+    overlays.dirty.highways ||
+    overlays.dirty.railways ||
+    overlays.dirty.landmarks ||
+    overlays.dirty.districts;
 
   return (
     <div className="app">
@@ -328,6 +371,9 @@ export default function App() {
             <button className={mode === "biome" ? "active" : ""} onClick={() => setMode("biome")}>
               Biome
             </button>
+            <button className={mode === "difference" ? "active" : ""} onClick={() => setMode("difference")}>
+              Difference
+            </button>
           </div>
         </section>
 
@@ -344,6 +390,10 @@ export default function App() {
           <label className="check">
             <input type="checkbox" checked={toggles.landmark} onChange={(e) => setToggles((t) => ({ ...t, landmark: e.target.checked }))} />
             Landmarks
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={toggles.district} onChange={(e) => setToggles((t) => ({ ...t, district: e.target.checked }))} />
+            Districts
           </label>
           <label className="check">
             <input
@@ -430,6 +480,12 @@ export default function App() {
       <div className="coords">
         {cursor ? `X ${Math.round(cursor.x)}  Z ${Math.round(cursor.z)}` : "— move over the map —"}
       </div>
+
+      <ResistorKey
+        terrain={mode === "contour2d"}
+        tunnel={showTunnelDepths}
+        difference={mode === "difference"}
+      />
     </div>
   );
 }
@@ -447,9 +503,9 @@ function EditTools(props: {
   return (
     <div className="edit-tools">
       <div className="btn-row">
-        {(["highway", "railway", "landmark"] as ActiveLayer[]).map((l) => (
+        {(["highway", "railway", "landmark", "district"] as ActiveLayer[]).map((l) => (
           <button key={l} className={edit.layer === l ? "active" : ""} onClick={() => pickLayer(l)}>
-            {l === "highway" ? "Hwy" : l === "railway" ? "Rail" : "Mark"}
+            {l === "highway" ? "Hwy" : l === "railway" ? "Rail" : l === "landmark" ? "Mark" : "Dist"}
           </button>
         ))}
       </div>
@@ -477,9 +533,15 @@ function EditTools(props: {
             </button>
           </>
         )}
+        {edit.layer === "district" && (
+          <button className={edit.tool === "district-area" ? "active" : ""} onClick={() => pickTool("district-area")}>
+            Area
+          </button>
+        )}
       </div>
       {(edit.tool === "line" ||
         edit.tool === "landmark-area" ||
+        edit.tool === "district-area" ||
         edit.tool === "station") && (
         <p className="hint">
           Click the map to add points.{" "}

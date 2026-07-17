@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  type DistrictCollection,
   type HighwayNetwork,
   type LandmarkCollection,
   type RailwayNetwork,
+  emptyDistricts,
   emptyHighwayNetwork,
   emptyLandmarks,
   emptyRailwayNetwork,
@@ -11,12 +13,13 @@ import { assetUrl, fetchJSON } from "../api";
 import { migrateNetworkPaved } from "../edit/model";
 
 export type LineKind = "highway" | "railway";
-export type DataKind = "highways" | "railways" | "landmarks";
+export type DataKind = "highways" | "railways" | "landmarks" | "districts";
 
 export interface Overlays {
   highways: HighwayNetwork;
   railways: RailwayNetwork;
   landmarks: LandmarkCollection;
+  districts: DistrictCollection;
   loaded: boolean;
   dirty: Record<DataKind, boolean>;
   network: (kind: LineKind) => HighwayNetwork | RailwayNetwork;
@@ -25,6 +28,7 @@ export interface Overlays {
     fn: (net: HighwayNetwork | RailwayNetwork) => void,
   ) => void;
   updateLandmarks: (fn: (doc: LandmarkCollection) => void) => void;
+  updateDistricts: (fn: (doc: DistrictCollection) => void) => void;
   save: (kind: DataKind) => Promise<boolean>;
   saveAll: () => Promise<void>;
 }
@@ -38,11 +42,13 @@ export function useOverlays(): Overlays {
   const [highways, setHighways] = useState<HighwayNetwork>(emptyHighwayNetwork);
   const [railways, setRailways] = useState<RailwayNetwork>(emptyRailwayNetwork);
   const [landmarks, setLandmarks] = useState<LandmarkCollection>(emptyLandmarks);
+  const [districts, setDistricts] = useState<DistrictCollection>(emptyDistricts);
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState<Record<DataKind, boolean>>({
     highways: false,
     railways: false,
     landmarks: false,
+    districts: false,
   });
 
   useEffect(() => {
@@ -51,7 +57,8 @@ export function useOverlays(): Overlays {
       fetchJSON<HighwayNetwork>(readUrl("highways")),
       fetchJSON<RailwayNetwork>(readUrl("railways")),
       fetchJSON<LandmarkCollection>(readUrl("landmarks")),
-    ]).then(([h, r, l]) => {
+      fetchJSON<DistrictCollection>(readUrl("districts")),
+    ]).then(([h, r, l, dist]) => {
       if (cancelled) return;
       if (h) {
         migrateNetworkPaved(h);
@@ -62,6 +69,7 @@ export function useOverlays(): Overlays {
         setRailways(r);
       }
       if (l) setLandmarks(l);
+      if (dist) setDistricts(dist);
       setLoaded(true);
     });
     return () => {
@@ -104,10 +112,25 @@ export function useOverlays(): Overlays {
     setDirty((d) => ({ ...d, landmarks: true }));
   }, []);
 
+  const updateDistricts = useCallback((fn: (doc: DistrictCollection) => void) => {
+    setDistricts((prev) => {
+      const draft = structuredClone(prev);
+      fn(draft);
+      return draft;
+    });
+    setDirty((d) => ({ ...d, districts: true }));
+  }, []);
+
   const docFor = useCallback(
     (kind: DataKind) =>
-      kind === "highways" ? highways : kind === "railways" ? railways : landmarks,
-    [highways, railways, landmarks],
+      kind === "highways"
+        ? highways
+        : kind === "railways"
+          ? railways
+          : kind === "landmarks"
+            ? landmarks
+            : districts,
+    [highways, railways, landmarks, districts],
   );
 
   const save = useCallback(
@@ -130,7 +153,7 @@ export function useOverlays(): Overlays {
 
   const saveAll = useCallback(async () => {
     await Promise.all(
-      (["highways", "railways", "landmarks"] as DataKind[]).map((k) => save(k)),
+      (["highways", "railways", "landmarks", "districts"] as DataKind[]).map((k) => save(k)),
     );
   }, [save]);
 
@@ -142,14 +165,29 @@ export function useOverlays(): Overlays {
       highways,
       railways,
       landmarks,
+      districts,
       loaded,
       dirty,
       network,
       updateNetwork,
       updateLandmarks,
+      updateDistricts,
       save,
       saveAll,
     }),
-    [highways, railways, landmarks, loaded, dirty, network, updateNetwork, updateLandmarks, save, saveAll],
+    [
+      highways,
+      railways,
+      landmarks,
+      districts,
+      loaded,
+      dirty,
+      network,
+      updateNetwork,
+      updateLandmarks,
+      updateDistricts,
+      save,
+      saveAll,
+    ],
   );
 }

@@ -1,17 +1,19 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  emptyDistricts,
   emptyHighwayNetwork,
   emptyLandmarks,
   emptyRailwayNetwork,
 } from "@hcmap/shared";
 import { DATA_DIR } from "./config";
 
-/** The three editable overlay documents and their default (empty) contents. */
+/** The editable overlay documents and their default (empty) contents. */
 const FILES = {
   highways: { file: "highways.json", empty: emptyHighwayNetwork },
   railways: { file: "railways.json", empty: emptyRailwayNetwork },
   landmarks: { file: "landmarks.json", empty: emptyLandmarks },
+  districts: { file: "districts.json", empty: emptyDistricts },
 } as const;
 
 export type DataKind = keyof typeof FILES;

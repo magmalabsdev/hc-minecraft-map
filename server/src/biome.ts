@@ -12,7 +12,7 @@ import {
 } from "deepslate";
 
 const here = path.dirname(fileURLToPath(import.meta.url)); // <repo>/server/src
-const VENDOR_DIR = path.resolve(here, "../vendor/worldgen");
+export const VENDOR_DIR = path.resolve(here, "../vendor/worldgen");
 
 /**
  * Vanilla's real overworld biome placement (`OverworldBiomeBuilder`) is a
@@ -29,7 +29,7 @@ const VENDOR_DIR = path.resolve(here, "../vendor/worldgen");
 
 let dataLoaded = false;
 
-function loadWorldgenData(): void {
+export function loadWorldgenData(): void {
   if (dataLoaded) return;
   dataLoaded = true;
   walk(path.join(VENDOR_DIR, "noise"), (id, json) => {

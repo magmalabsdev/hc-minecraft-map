@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import {
   DISRUPTION_TYPES,
+  type District,
   type DisruptionType,
   type Id,
   type Landmark,
@@ -21,6 +22,7 @@ import {
   type PolyTarget,
   addStationEntrance,
   applyToRouteSegments,
+  deleteDistrict,
   deleteLandmark,
   deleteNodeFromNetwork,
   deletePolyVertex,
@@ -77,6 +79,8 @@ export function Inspector({ overlays, edit, setEdit, editable }: Props) {
     body = <StationPanel overlays={overlays} id={sel.id} editable={editable} clear={clear} />;
   } else if (sel.type === "landmark") {
     body = <LandmarkPanel overlays={overlays} id={sel.id} editable={editable} clear={clear} />;
+  } else if (sel.type === "district") {
+    body = <DistrictPanel overlays={overlays} id={sel.id} editable={editable} clear={clear} />;
   }
 
   return (
@@ -144,6 +148,8 @@ function NodePanel(p: { overlays: Overlays; net: LineKind; id: Id; editable: boo
 function getPolygon(overlays: Overlays, target: PolyTarget): Vec2[] | undefined {
   if (target.kind === "landmark")
     return overlays.landmarks.landmarks.find((l) => l.id === target.id)?.polygon;
+  if (target.kind === "district")
+    return overlays.districts.districts.find((d) => d.id === target.id)?.polygon;
   return overlays.railways.stations.find((s) => s.id === target.id)?.polygon;
 }
 
@@ -152,6 +158,11 @@ function applyPoly(overlays: Overlays, target: PolyTarget, fn: (poly: Vec2[]) =>
     overlays.updateLandmarks((doc) => {
       const l = doc.landmarks.find((x) => x.id === target.id);
       if (l?.polygon) fn(l.polygon);
+    });
+  } else if (target.kind === "district") {
+    overlays.updateDistricts((doc) => {
+      const d = doc.districts.find((x) => x.id === target.id);
+      if (d) fn(d.polygon);
     });
   } else {
     overlays.updateNetwork("railway", (n) => {
@@ -846,6 +857,52 @@ function LandmarkPanel(p: { overlays: Overlays; id: Id; editable: boolean; clear
           style={{ width: "100%", marginTop: 8 }}
           onClick={() => {
             p.overlays.updateLandmarks((doc) => deleteLandmark(doc, p.id));
+            p.clear();
+          }}
+        >
+          Delete
+        </button>
+      )}
+    </>
+  );
+}
+
+// --- district ---
+
+function DistrictPanel(p: { overlays: Overlays; id: Id; editable: boolean; clear: () => void }) {
+  const district = p.overlays.districts.districts.find((d) => d.id === p.id);
+  if (!district) return null;
+  const patch = (fn: (d: District) => void) =>
+    p.overlays.updateDistricts((doc) => {
+      const d = doc.districts.find((x) => x.id === p.id);
+      if (d) fn(d);
+    });
+  return (
+    <>
+      <h3>District</h3>
+      <label className="stack">
+        Name
+        <input disabled={!p.editable} value={district.name} onChange={(e) => patch((d) => (d.name = e.target.value))} />
+      </label>
+      <label className="stack">
+        Color
+        <input
+          type="color"
+          disabled={!p.editable}
+          value={district.color ?? "#4a90d9"}
+          onChange={(e) => patch((d) => (d.color = e.target.value))}
+        />
+      </label>
+      <p className="hint">
+        Landmarks and railway stations inside this boundary show its name in their tooltip.
+      </p>
+      {p.editable && <p className="hint">Drag a vertex to reshape, or a midpoint to add one.</p>}
+      {p.editable && (
+        <button
+          className="danger"
+          style={{ width: "100%", marginTop: 8 }}
+          onClick={() => {
+            p.overlays.updateDistricts((doc) => deleteDistrict(doc, p.id));
             p.clear();
           }}
         >

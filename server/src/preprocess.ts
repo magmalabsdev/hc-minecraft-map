@@ -21,6 +21,7 @@ import {
   WORLD_SEED,
 } from "./config";
 import { classifyBiome, climateSampler, sampleClimate, URBAN_COLOR } from "./biome";
+import { originalHeight } from "./originalHeight";
 
 export interface Region {
   dimension: Dimension;
@@ -70,22 +71,76 @@ function bandColor(h: number): [number, number, number] {
   return ones < 5 ? RESISTOR_LIGHT[tens] : RESISTOR_DARK[tens];
 }
 
+/**
+ * Render one block's resistor-code cell into a supersampled tile plus its
+ * coarse tinted overview-seed twin — shared by the "bands" (absolute elevation)
+ * and "difference" (current-minus-original height) tiles. The N x N cell is the
+ * tens-digit hue, with a smaller bottom-right corner dot in the ones-digit hue
+ * so every exact value reads off up close; the tint pixel encodes the same
+ * value as bandColor's light/dark shading for the zoomed-out pyramid.
+ */
+function writeResistorCell(
+  superPng: PNG,
+  tintPng: PNG,
+  px: number,
+  pz: number,
+  value: number,
+  alpha: number,
+  N: number,
+  bandsSize: number,
+  innerLo: number,
+  innerHi: number,
+): void {
+  const { tens, ones } = digitBands(value);
+  const [br, bg, bb] = RESISTOR_COLORS[tens];
+  const [dr, dg, db] = RESISTOR_COLORS[ones];
+  for (let sz = 0; sz < N; sz++) {
+    for (let sx = 0; sx < N; sx++) {
+      const inner = sx >= innerLo && sx < innerHi && sz >= innerLo && sz < innerHi;
+      const oi2 = idx(px * N + sx, pz * N + sz, bandsSize);
+      superPng.data[oi2] = inner ? dr : br;
+      superPng.data[oi2 + 1] = inner ? dg : bg;
+      superPng.data[oi2 + 2] = inner ? db : bb;
+      superPng.data[oi2 + 3] = alpha;
+    }
+  }
+  const oi = idx(px, pz, tintPng.width);
+  const [tr, tg, tb] = bandColor(value);
+  tintPng.data[oi] = tr;
+  tintPng.data[oi + 1] = tg;
+  tintPng.data[oi + 2] = tb;
+  tintPng.data[oi + 3] = alpha;
+}
+
 function tileUrl(dim: Dimension, lod: number, tx: number, tz: number): string {
   return `${UPSTREAM}/maps/${dim}/tiles/${lod}/x${tx}/z${tz}.png`;
 }
 
-/** Fetch and decode a lowres tile PNG. Returns null for empty (204/404) tiles. */
+/**
+ * Fetch and decode a lowres tile PNG. Returns null for empty (204/404) tiles.
+ * Retries transient network failures (DNS blips, resets) a few times with a
+ * short backoff — a full-map mirror can now run for hours (the "difference"
+ * kind's per-block original-height computation is the main reason), long
+ * enough that a single passing network hiccup shouldn't kill the whole run.
+ */
 async function fetchTilePng(
   dim: Dimension,
   tx: number,
   tz: number,
+  attempt = 0,
 ): Promise<PNG | null> {
-  const res = await fetch(tileUrl(dim, 1, tx, tz));
-  if (res.status === 204 || res.status === 404) return null;
-  if (!res.ok) throw new Error(`tile ${tx},${tz}: HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length === 0) return null;
-  return PNG.sync.read(buf);
+  try {
+    const res = await fetch(tileUrl(dim, 1, tx, tz));
+    if (res.status === 204 || res.status === 404) return null;
+    if (!res.ok) throw new Error(`tile ${tx},${tz}: HTTP ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0) return null;
+    return PNG.sync.read(buf);
+  } catch (err) {
+    if (attempt >= 4) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+    return fetchTilePng(dim, tx, tz, attempt + 1);
+  }
 }
 
 /** Index into an RGBA buffer for pixel (x, y) in a `width`-wide image. */
@@ -138,6 +193,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   await fs.mkdir(path.join(dimDir, "minimal"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "bands"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "biome"), { recursive: true });
+  await fs.mkdir(path.join(dimDir, "difference"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "derived"), { recursive: true });
 
   const tileCoords: { tx: number; tz: number }[] = [];
@@ -147,6 +203,12 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   let written = 0;
   let empty = 0;
   const sampler = climateSampler(WORLD_SEED);
+  // Coarse tinted "bands"/"difference" tiles keyed by "tx,tz" — fed into
+  // generateOverviews as an in-memory substitute for the actual (dotted,
+  // supersampled) native tile so the zoomed-out pyramid keeps the light/dark
+  // ones-digit shading instead of inheriting the corner dot.
+  const bandsTintSeed = new Map<string, PNG>();
+  const differenceTintSeed = new Map<string, PNG>();
 
   await pool(tileCoords, 6, async ({ tx, tz }) => {
     const png = await fetchTilePng(dim, tx, tz);
@@ -166,7 +228,17 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
     const minimal = new PNG({ width: S, height: S });
     const N = BANDS_SUPERSAMPLE;
     const bandsSize = S * N;
+    // "bands" (Terrain 2D) and "difference" share the exact same resistor-code
+    // rendering — an N x N supersampled cell (tens-digit hue + ones-digit corner
+    // dot) plus a coarse single-resolution tinted twin (bandColor's light/dark
+    // shading) that seeds the zoomed-out overview pyramid, so the ones digit
+    // survives as shading once the corner dot is too small to see. They differ
+    // only in the value encoded: absolute elevation for bands, current-minus-
+    // original height for difference.
     const bands = new PNG({ width: bandsSize, height: bandsSize });
+    const bandsTint = new PNG({ width: S, height: S });
+    const difference = new PNG({ width: bandsSize, height: bandsSize });
+    const differenceTint = new PNG({ width: S, height: S });
     // Sub-pixel rows/cols making up the smaller inner dot (the bottom-right
     // corner of each block's N x N cell), e.g. N=2 -> just index 1.
     const innerLo = Math.floor(N / 2);
@@ -187,24 +259,25 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
         colorPng.data[oi + 2] = data[ci + 2];
         colorPng.data[oi + 3] = data[ci + 3];
 
-        // Resistor-code elevation band output: the block's N x N cell is
-        // filled with the tens-digit band color, except a smaller corner dot
-        // showing the ones digit's own resistor color directly — so at close
-        // range every single Y level reads off exactly, while at native/
-        // zoomed-out resolution it blends back into the block color.
-        const [br, bg, bb] = bandColor(h);
-        const [dr, dg, db] = RESISTOR_COLORS[digitBands(h).ones];
+        // Resistor-code cells (see the bands/difference declarations above):
+        // absolute elevation for Terrain 2D, and current-minus-original-height
+        // for the Difference view — identical tens-hue + ones-corner-dot scheme.
         const alpha = data[ci + 3];
-        for (let sz = 0; sz < N; sz++) {
-          for (let sx = 0; sx < N; sx++) {
-            const inner = sx >= innerLo && sx < innerHi && sz >= innerLo && sz < innerHi;
-            const oi2 = idx(px * N + sx, pz * N + sz, bandsSize);
-            bands.data[oi2] = inner ? dr : br;
-            bands.data[oi2 + 1] = inner ? dg : bg;
-            bands.data[oi2 + 2] = inner ? db : bb;
-            bands.data[oi2 + 3] = alpha;
-          }
-        }
+        writeResistorCell(bands, bandsTint, px, pz, h, alpha, N, bandsSize, innerLo, innerHi);
+        const worldX = tx * S + px;
+        const worldZ = tz * S + pz;
+        writeResistorCell(
+          difference,
+          differenceTint,
+          px,
+          pz,
+          h - originalHeight(WORLD_SEED, worldX, worldZ),
+          alpha,
+          N,
+          bandsSize,
+          innerLo,
+          innerHi,
+        );
 
         // hillshade from the +x / +z neighbours (overlap row/col covers edges)
         const hx = decodeHeight(
@@ -240,7 +313,13 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
     await writeTile(dimDir, "minimal", 0, tx, tz, minimal);
     await writeTile(dimDir, "bands", 0, tx, tz, bands);
     await writeTile(dimDir, "biome", 0, tx, tz, biome);
+    await writeTile(dimDir, "difference", 0, tx, tz, difference);
+    bandsTintSeed.set(`${tx},${tz}`, bandsTint);
+    differenceTintSeed.set(`${tx},${tz}`, differenceTint);
     written++;
+    if (written % 20 === 0) {
+      console.log(`[mirror] progress: ${written}/${tileCoords.length} tiles`);
+    }
   });
 
   // --- overview pyramid (so zoomed-out views load few, pre-shrunk tiles) ---
@@ -249,8 +328,9 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   const maxLevel = Math.min(6, Math.ceil(Math.log2(Math.max(1, spanX, spanZ))));
   const bounds = { xMin: txMin, xMax: txMax, yMin: tzMin, yMax: tzMax };
   await generateOverviews(dimDir, "terrain", bounds, maxLevel);
-  await generateOverviews(dimDir, "bands", bounds, maxLevel);
+  await generateOverviews(dimDir, "bands", bounds, maxLevel, bandsTintSeed);
   await generateOverviews(dimDir, "biome", bounds, maxLevel);
+  await generateOverviews(dimDir, "difference", bounds, maxLevel, differenceTintSeed);
   const minNativeZoom = await generateOverviews(dimDir, "minimal", bounds, maxLevel);
 
   // --- contours ---
@@ -298,7 +378,7 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   };
 }
 
-type TileKind = "terrain" | "minimal" | "bands" | "biome";
+type TileKind = "terrain" | "minimal" | "bands" | "biome" | "difference";
 
 const BIOME_CELLS_PER_TILE = LOWRES_TILE_SIZE / BIOME_CELL_SIZE;
 
@@ -505,6 +585,15 @@ async function generateOverviews(
   kind: TileKind,
   bounds: { xMin: number; xMax: number; yMin: number; yMax: number },
   maxLevel: number,
+  /**
+   * In-memory zoom-0 substitute, keyed by "tx,tz" — used instead of reading
+   * the real native tile from disk for the very first level (L=1). "bands"
+   * uses this to build its overview pyramid from the coarse tinted color
+   * (bandsTint) rather than the dotted, untinted native tile, so the
+   * light/dark ones-digit shading survives at zoomed-out levels even though
+   * the native tile itself no longer carries it.
+   */
+  seedTiles?: Map<string, PNG>,
 ): Promise<number> {
   const S = LOWRES_TILE_SIZE;
   let { xMin, xMax, yMin, yMax } = bounds;
@@ -522,7 +611,12 @@ async function generateOverviews(
         let any = false;
         for (let dx = 0; dx < 2; dx++) {
           for (let dy = 0; dy < 2; dy++) {
-            const child = await readTile(dimDir, kind, prevZ, X * 2 + dx, Y * 2 + dy);
+            const cx = X * 2 + dx;
+            const cy = Y * 2 + dy;
+            const child =
+              L === 1 && seedTiles
+                ? (seedTiles.get(`${cx},${cy}`) ?? null)
+                : await readTile(dimDir, kind, prevZ, cx, cy);
             if (!child) continue;
             any = true;
             // The "bands" native tile is supersampled (bigger than S x S) for

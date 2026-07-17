@@ -2000,7 +2000,7 @@
     },
     {
       "id": "r_mrjz5pmj1",
-      "name": "Magma Labs Norfolk Tram",
+      "name": "Norfolk Tram",
       "nodeIds": [
         "n_mrjz5pmk3",
         "n_mrlvin5h18",
@@ -2012,7 +2012,8 @@
         "flat": false,
         "lit": false,
         "paved": true
-      }
+      },
+      "operator": "Magma Labs "
     },
     {
       "id": "r_mrlern1y1",
@@ -2629,7 +2630,7 @@
     },
     {
       "id": "st_mrlesomqf",
-      "name": "North Third Ring",
+      "name": "Daydream Forest - North Third Ring",
       "polygon": [
         {
           "x": -7,
@@ -2696,20 +2697,92 @@
       "name": "Magma Labs Park",
       "polygon": [
         {
-          "x": 33,
-          "z": 119
+          "x": 36,
+          "z": 112
+        },
+        {
+          "x": 36,
+          "z": 122
+        },
+        {
+          "x": 36,
+          "z": 138
+        },
+        {
+          "x": 36,
+          "z": 143
         },
         {
           "x": 33,
-          "z": 137
+          "z": 143
         },
         {
-          "x": -5,
-          "z": 137
+          "x": 33,
+          "z": 138
         },
         {
-          "x": -5,
-          "z": 119
+          "x": 25,
+          "z": 138
+        },
+        {
+          "x": 25,
+          "z": 143
+        },
+        {
+          "x": 21,
+          "z": 143
+        },
+        {
+          "x": 21,
+          "z": 138
+        },
+        {
+          "x": 9,
+          "z": 138
+        },
+        {
+          "x": 9,
+          "z": 145
+        },
+        {
+          "x": -6,
+          "z": 145
+        },
+        {
+          "x": -6,
+          "z": 116
+        },
+        {
+          "x": 9,
+          "z": 116
+        },
+        {
+          "x": 9,
+          "z": 122
+        },
+        {
+          "x": 21,
+          "z": 122
+        },
+        {
+          "x": 21,
+          "z": 112
+        },
+        {
+          "x": 25,
+          "z": 112
+        },
+        {
+          "x": 25,
+          "z": 122
+        },
+        {
+          "x": 33,
+          "z": 122
+        },
+        {
+          "x": 33,
+          "z": 112
         }
       ],
       "lineIds": [
@@ -2717,7 +2790,63 @@
         "r_mrlern1y1",
         "r_mrn9efzvo"
       ],
-      "built": true
+      "built": true,
+      "entrances": [
+        {
+          "id": "se_mropn1vm2",
+          "name": "A1",
+          "point": {
+            "x": 35,
+            "z": 113
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mropnb6d4",
+          "name": "A2",
+          "point": {
+            "x": 23,
+            "z": 113
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mropnfex6",
+          "name": "B",
+          "point": {
+            "x": 5,
+            "z": 129
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mropntwt8",
+          "name": "C",
+          "point": {
+            "x": 11,
+            "z": 140
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mropnzb1a",
+          "name": "D1",
+          "point": {
+            "x": 22,
+            "z": 140
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mropo3gjc",
+          "name": "D2",
+          "point": {
+            "x": 34,
+            "z": 140
+          },
+          "kind": "both"
+        }
+      ]
     },
     {
       "id": "st_mrleto36j",
@@ -2843,20 +2972,36 @@
       "name": "North Second Ring",
       "polygon": [
         {
-          "x": -5,
-          "z": -348
+          "x": -6,
+          "z": -351
         },
         {
-          "x": -5,
-          "z": -313
+          "x": -6,
+          "z": -308
         },
         {
-          "x": 10,
-          "z": -313
+          "x": 3,
+          "z": -308
         },
         {
-          "x": 10,
-          "z": -348
+          "x": 3,
+          "z": -307
+        },
+        {
+          "x": 8,
+          "z": -307
+        },
+        {
+          "x": 8,
+          "z": -352
+        },
+        {
+          "x": 3,
+          "z": -352
+        },
+        {
+          "x": 3,
+          "z": -351
         }
       ],
       "lineIds": [
@@ -3008,26 +3153,120 @@
       "name": "Fallout Lake - South Third Ring",
       "polygon": [
         {
-          "x": -2,
-          "z": 596
+          "x": -1,
+          "z": 595
         },
         {
-          "x": -2,
-          "z": 613
+          "x": -1,
+          "z": 611
+        },
+        {
+          "x": -5,
+          "z": 611
+        },
+        {
+          "x": -5,
+          "z": 616
+        },
+        {
+          "x": 13,
+          "z": 616
+        },
+        {
+          "x": 13,
+          "z": 611
         },
         {
           "x": 12,
-          "z": 613
+          "z": 611
         },
         {
           "x": 12,
-          "z": 596
+          "z": 595
+        },
+        {
+          "x": 8,
+          "z": 595
+        },
+        {
+          "x": 8,
+          "z": 585
+        },
+        {
+          "x": 10,
+          "z": 585
+        },
+        {
+          "x": 10,
+          "z": 580
+        },
+        {
+          "x": 8,
+          "z": 580
+        },
+        {
+          "x": 3,
+          "z": 580
+        },
+        {
+          "x": 0,
+          "z": 580
+        },
+        {
+          "x": 0,
+          "z": 585
+        },
+        {
+          "x": 3,
+          "z": 585
+        },
+        {
+          "x": 3,
+          "z": 595
         }
       ],
       "lineIds": [
         "r_mrlern1y1"
       ],
-      "built": true
+      "built": true,
+      "entrances": [
+        {
+          "id": "se_mrouplva2",
+          "name": "A",
+          "point": {
+            "x": 9,
+            "z": 583
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mrouppq74",
+          "name": "B",
+          "point": {
+            "x": 1,
+            "z": 583
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mroupumo6",
+          "name": "C",
+          "point": {
+            "x": -4,
+            "z": 614
+          },
+          "kind": "both"
+        },
+        {
+          "id": "se_mrouq1s68",
+          "name": "D",
+          "point": {
+            "x": 12,
+            "z": 614
+          },
+          "kind": "both"
+        }
+      ]
     },
     {
       "id": "st_mrlewx8h11",
@@ -3105,7 +3344,7 @@
           "id": "se_mro3h5r316",
           "name": "B1",
           "point": {
-            "x": -3,
+            "x": -2,
             "z": 440
           },
           "kind": "both"
@@ -3220,15 +3459,19 @@
           "z": 38
         },
         {
-          "x": 37,
-          "z": 5
+          "x": 39,
+          "z": 38
         },
         {
-          "x": 33,
-          "z": 5
+          "x": 39,
+          "z": 6
         },
         {
-          "x": 33,
+          "x": 34,
+          "z": 6
+        },
+        {
+          "x": 34,
           "z": 29
         },
         {
@@ -3290,8 +3533,8 @@
           "id": "se_mro3daq1s",
           "name": "D",
           "point": {
-            "x": 35,
-            "z": 45
+            "x": 33,
+            "z": 77
           },
           "kind": "both"
         }
@@ -3328,7 +3571,7 @@
     },
     {
       "id": "st_mrlf5wmu31",
-      "name": "Station 29",
+      "name": "YTK City",
       "polygon": [
         {
           "x": -234,
@@ -3413,7 +3656,7 @@
           "name": "A2",
           "point": {
             "x": 24,
-            "z": 235
+            "z": 236
           },
           "kind": "both"
         },
@@ -3521,7 +3764,7 @@
     },
     {
       "id": "st_mrlf8i4r3b",
-      "name": "Station 34",
+      "name": "Northeast Third Ring",
       "polygon": [
         {
           "x": 455,

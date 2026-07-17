@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import type {
   Dimension,
+  DistrictCollection,
   HighwayNetwork,
   LandmarkCollection,
   RailwayNetwork,
@@ -32,7 +33,7 @@ import {
   snapshotTileUrlTemplate,
 } from "../api";
 
-export type BaseMode = "landscape2d" | "contour2d" | "minimal2d" | "biome";
+export type BaseMode = "landscape2d" | "contour2d" | "minimal2d" | "biome" | "difference";
 
 export interface MapViewProps {
   dimension: Dimension;
@@ -45,6 +46,7 @@ export interface MapViewProps {
     highways: HighwayNetwork;
     railways: RailwayNetwork;
     landmarks: LandmarkCollection;
+    districts: DistrictCollection;
   };
   toggles: OverlayToggles;
   edit: EditState;
@@ -61,6 +63,7 @@ function baseVariant(mode: BaseMode): BaseVariant {
   if (mode === "minimal2d") return "minimal";
   if (mode === "contour2d") return "bands";
   if (mode === "biome") return "biome";
+  if (mode === "difference") return "difference";
   return "terrain";
 }
 
@@ -165,7 +168,9 @@ export function MapView(props: MapViewProps) {
               ? "base-bands"
               : baseMode === "biome"
                 ? "base-biome"
-                : "base-terrain",
+                : baseMode === "difference"
+                  ? "base-difference"
+                  : "base-terrain",
       });
       layer.addTo(map);
       layer.bringToBack();
@@ -228,6 +233,7 @@ export function MapView(props: MapViewProps) {
       highways: overlays.highways,
       railways: overlays.railways,
       landmarks: overlays.landmarks,
+      districts: overlays.districts,
       toggles,
       edit,
       handlers: overlayHandlers,

@@ -1,5 +1,7 @@
 import L from "leaflet";
 import {
+  type District,
+  type DistrictCollection,
   type HighwayNetwork,
   type Id,
   type Landmark,
@@ -11,6 +13,7 @@ import {
   type Vec2,
   digitBands,
   disruptionTypeLabel,
+  districtAt,
   lineBuiltThroughStation,
   resistorColorHex,
   resolveSegment,
@@ -72,6 +75,7 @@ export interface OverlayToggles {
   highway: boolean;
   railway: boolean;
   landmark: boolean;
+  district: boolean;
 }
 
 export interface OverlayHandlers {
@@ -81,12 +85,15 @@ export interface OverlayHandlers {
   onMovePolyVertex: (target: PolyTarget, index: number, x: number, z: number) => void;
   onInsertPolyVertex: (target: PolyTarget, edgeIndex: number, x: number, z: number) => void;
   onMoveStationEntrance: (stationId: Id, entranceId: Id, x: number, z: number) => void;
+  onMoveLandmark: (id: Id, x: number, z: number) => void;
+  onMoveDistrict: (id: Id, x: number, z: number) => void;
 }
 
 export interface OverlayRenderOpts {
   highways: HighwayNetwork;
   railways: RailwayNetwork;
   landmarks: LandmarkCollection;
+  districts: DistrictCollection;
   toggles: OverlayToggles;
   edit: EditState;
   handlers: OverlayHandlers;
@@ -137,6 +144,11 @@ function isSelected(sel: Selection, type: string, id: Id): boolean {
 /** Build all overlay layers for the current data + edit state. */
 export function buildOverlays(opts: OverlayRenderOpts): L.Layer[] {
   const layers: L.Layer[] = [];
+  // Districts render first (bottom of the stack) — they're background
+  // boundaries, not points of interest, so everything else stays clickable.
+  if (opts.toggles.district) {
+    pushDistricts(layers, opts.districts, opts);
+  }
   if (opts.toggles.highway) {
     pushNetwork(layers, "highway", opts.highways, opts);
   }
@@ -281,7 +293,8 @@ function pushTunnelCrossings(layers: L.Layer[], opts: OverlayRenderOpts): void {
 
 /** In-progress landmark-area polygon while drawing. */
 function pushDraft(layers: L.Layer[], edit: EditState): void {
-  const drawingArea = edit.tool === "landmark-area" || edit.tool === "station";
+  const drawingArea =
+    edit.tool === "landmark-area" || edit.tool === "station" || edit.tool === "district-area";
   if (!edit.enabled || !drawingArea || edit.draftPolygon.length === 0) {
     return;
   }
@@ -634,11 +647,16 @@ function pushPolygonEditor(
 function isPolyEditing(
   sel: Selection,
   edit: EditState,
-  kind: "landmark" | "station",
+  kind: "landmark" | "station" | "district",
   id: Id,
 ): boolean {
   if (!edit.enabled || !sel) return false;
-  if ((sel.type === "landmark" || sel.type === "station") && sel.id === id) return true;
+  if (
+    (sel.type === "landmark" || sel.type === "station" || sel.type === "district") &&
+    sel.id === id
+  ) {
+    return true;
+  }
   return sel.type === "vertex" && sel.target.kind === kind && sel.target.id === id;
 }
 
@@ -672,6 +690,7 @@ function pushStationLike(
     : assignedLines.filter((r) => lineBuiltThroughStation(r, st, net));
   const colors = lines.length ? lines.map((l) => l.color ?? "#888") : ["#d0d0d0"];
   const ring = st.polygon.map((p) => blockToLatLng(p.x, p.z));
+  const district = districtAt(opts.districts.districts, polyCentroid(st.polygon));
 
   // Body: striped with every served line's colour (SVG pattern), or solid for one.
   let fillColor = colors[0];
@@ -688,7 +707,7 @@ function pushStationLike(
     opacity: planned ? 0.45 : 1,
     dashArray: planned ? "4 4" : undefined,
   });
-  poly.bindTooltip(stationTooltip(st, lines, planned));
+  poly.bindTooltip(stationTooltip(st, lines, planned, district));
   poly.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
@@ -711,7 +730,7 @@ function pushStationLike(
       iconAnchor: [20, 20],
     }),
   });
-  marker.bindTooltip(stationTooltip(st, lines, planned));
+  marker.bindTooltip(stationTooltip(st, lines, planned, district));
   marker.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "station", id: st.id });
@@ -758,6 +777,61 @@ function accessKindLabel(kind: StationAccessKind): string {
   return kind === "entrance" ? "Entrance" : kind === "exit" ? "Exit" : "Entrance / Exit";
 }
 
+// --- districts ---
+
+function pushDistricts(
+  layers: L.Layer[],
+  doc: DistrictCollection,
+  opts: OverlayRenderOpts,
+): void {
+  for (const d of doc.districts) {
+    if (d.polygon.length < 3) continue;
+    const ring = d.polygon.map((p) => blockToLatLng(p.x, p.z));
+    const color = d.color ?? "#4a90d9";
+    const selected = isSelected(opts.edit.selection, "district", d.id);
+    // Not interactive: a district's fill can span a huge area, and it must
+    // never intercept clicks meant for placing/selecting other things inside
+    // it (landmarks, stations, road nodes). Only the small label below is
+    // clickable, so editing a district still works without blocking anything.
+    const poly = L.polygon(ring, {
+      color,
+      weight: selected ? 3 : 2,
+      fillColor: color,
+      fillOpacity: 0.08,
+      dashArray: "10 6",
+      interactive: false,
+    });
+    layers.push(poly);
+
+    const labelAt = d.labelPos ?? polyCentroid(d.polygon);
+    const label = L.marker(blockToLatLng(labelAt.x, labelAt.z), {
+      draggable: opts.edit.enabled,
+      icon: L.divIcon({
+        className: "district-label",
+        html: `<div class="district-label-text" style="--c:${color}">${escape(d.name)}</div>`,
+        iconSize: [200, 20],
+        iconAnchor: [100, 10],
+      }),
+    });
+    label.on("click", (e) => {
+      L.DomEvent.stop(e);
+      opts.handlers.onSelect({ type: "district", id: d.id });
+    });
+    if (opts.edit.enabled) {
+      label.on("drag", snapMarkerToBlock);
+      label.on("dragend", (e) => {
+        const ll = (e.target as L.Marker).getLatLng();
+        opts.handlers.onMoveDistrict(d.id, ll.lng, ll.lat);
+      });
+    }
+    layers.push(label);
+
+    if (isPolyEditing(opts.edit.selection, opts.edit, "district", d.id)) {
+      pushPolygonEditor(layers, { kind: "district", id: d.id }, d.polygon, opts);
+    }
+  }
+}
+
 function pushLandmarks(
   layers: L.Layer[],
   doc: LandmarkCollection,
@@ -774,7 +848,7 @@ function pushLandmarks(
       });
       bindLandmark(poly, lm, opts);
       layers.push(poly);
-      layers.push(landmarkIconMarker(centroid(lm), lm, opts));
+      layers.push(landmarkIconMarker(landmarkLabelLatLng(lm), lm, opts));
       if (lm.polygon && isPolyEditing(opts.edit.selection, opts.edit, "landmark", lm.id)) {
         pushPolygonEditor(layers, { kind: "landmark", id: lm.id }, lm.polygon, opts);
       }
@@ -791,6 +865,7 @@ function landmarkIconMarker(
 ): L.Marker {
   const selected = isSelected(opts.edit.selection, "landmark", lm.id);
   const marker = L.marker(at, {
+    draggable: opts.edit.enabled,
     icon: L.divIcon({
       className: "landmark-marker",
       html: `<div class="lm-badge ${lm.shape}${selected ? " sel" : ""}" style="--c:${
@@ -801,6 +876,13 @@ function landmarkIconMarker(
     }),
   });
   bindLandmark(marker, lm, opts);
+  if (opts.edit.enabled) {
+    marker.on("drag", snapMarkerToBlock);
+    marker.on("dragend", (e) => {
+      const ll = (e.target as L.Marker).getLatLng();
+      opts.handlers.onMoveLandmark(lm.id, ll.lng, ll.lat);
+    });
+  }
   return marker;
 }
 
@@ -809,29 +891,37 @@ function bindLandmark(
   lm: Landmark,
   opts: OverlayRenderOpts,
 ): void {
-  layer.bindTooltip(`<b>${escape(lm.name)}</b>`);
+  const at = lm.point ?? polyCentroid(lm.polygon ?? []);
+  const district = districtAt(opts.districts.districts, at);
+  const districtNote = district ? `<br><span class="tip-district">${escape(district.name)}</span>` : "";
+  layer.bindTooltip(`<b>${escape(lm.name)}</b>${districtNote}`);
   layer.on("click", (e) => {
     L.DomEvent.stop(e);
     opts.handlers.onSelect({ type: "landmark", id: lm.id });
   });
 }
 
-function centroid(lm: Landmark): L.LatLng {
-  const pts = lm.polygon ?? [];
-  const sx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-  const sz = pts.reduce((s, p) => s + p.z, 0) / pts.length;
-  return blockToLatLng(sx, sz);
+/** Where an area landmark's icon sits: its explicit labelPos, or the polygon centroid. */
+function landmarkLabelLatLng(lm: Landmark): L.LatLng {
+  const at = lm.labelPos ?? polyCentroid(lm.polygon ?? []);
+  return blockToLatLng(at.x, at.z);
 }
 
-function stationTooltip(st: Station, lines: Route[], planned = false): string {
+function stationTooltip(
+  st: Station,
+  lines: Route[],
+  planned = false,
+  district?: District | null,
+): string {
   const list = lines.length
     ? "<br>" +
       lines
         .map((l) => `<span style="color:${l.color ?? "#ccc"}">■</span> ${escape(l.name)}`)
         .join("<br>")
     : "";
+  const districtNote = district ? `<br><span class="tip-district">${escape(district.name)}</span>` : "";
   const plannedNote = planned ? "<br>🚧 Planned — not yet built" : "";
-  return `<b>🚆 ${escape(st.name)}</b>${list}${plannedNote}`;
+  return `<b>🚆 ${escape(st.name)}</b>${list}${districtNote}${plannedNote}`;
 }
 
 function escape(s: string): string {
