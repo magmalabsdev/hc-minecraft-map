@@ -1,6 +1,6 @@
 {
   "dimension": "world",
-  "generatedAt": "2026-07-17T11:26:43.806Z",
+  "generatedAt": "2026-07-18T11:42:34.309Z",
   "tileSize": 500,
   "tiles": {
     "txMin": -2,
@@ -10,10 +10,10 @@
   },
   "bbox": {
     "dimension": "world",
-    "minX": -700,
-    "minZ": -700,
-    "maxX": 700,
-    "maxZ": 700
+    "minX": -600,
+    "minZ": -600,
+    "maxX": 600,
+    "maxZ": 600
   },
   "heightRange": [
     -59,

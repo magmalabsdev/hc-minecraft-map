@@ -52,6 +52,8 @@ export interface MapViewProps {
   edit: EditState;
   overlayHandlers: OverlayHandlers;
   route: RouteResult | null;
+  /** Route-finder is waiting for the user to click an endpoint. */
+  routePicking?: boolean;
   onCursor: (block: { x: number; z: number } | null) => void;
   onMapClick: (block: { x: number; z: number }) => void;
   onMapDblClick: () => void;
@@ -253,18 +255,51 @@ export function MapView(props: MapViewProps) {
     group.clearLayers();
     const route = props.route;
     if (!route || !route.ok || route.points.length < 2) return;
-    const lls = route.points.map((p) => blockToLatLng(p.x, p.z));
-    group.addLayer(L.polyline(lls, { color: "#0b0d10", weight: 8, opacity: 0.5, interactive: false }));
+
+    const legs = route.legs.length
+      ? route.legs
+      : [{ mode: route.mode, points: route.points }];
+
+    // Dark casing under the whole journey for contrast.
+    const fullLL = route.points.map((p) => blockToLatLng(p.x, p.z));
     group.addLayer(
-      L.polyline(lls, {
-        color: "#33d6ff",
-        weight: 4,
-        opacity: 0.95,
-        dashArray: route.mode === "rail" ? "10 6" : undefined,
-        interactive: false,
-      }),
+      L.polyline(fullLL, { color: "#0b0d10", weight: 8, opacity: 0.5, interactive: false }),
     );
-    for (const end of [lls[0], lls[lls.length - 1]]) {
+
+    // Each leg in its own style: rail dashed, walking solid.
+    for (const leg of legs) {
+      if (leg.points.length < 2) continue;
+      const lls = leg.points.map((p) => blockToLatLng(p.x, p.z));
+      group.addLayer(
+        L.polyline(lls, {
+          color: leg.mode === "rail" ? "#33d6ff" : "#8ce27a",
+          weight: 4,
+          opacity: 0.95,
+          dashArray: leg.mode === "rail" ? "10 6" : undefined,
+          interactive: false,
+        }),
+      );
+    }
+
+    // Station board/alight junctions (where walking meets rail).
+    for (let i = 0; i + 1 < legs.length; i++) {
+      if (legs[i].mode === legs[i + 1].mode) continue;
+      const pts = legs[i].points;
+      const junction = pts[pts.length - 1];
+      group.addLayer(
+        L.circleMarker(blockToLatLng(junction.x, junction.z), {
+          radius: 5,
+          color: "#0b0d10",
+          weight: 2,
+          fillColor: "#ffffff",
+          fillOpacity: 1,
+          interactive: false,
+        }),
+      );
+    }
+
+    // Overall start / end.
+    for (const end of [fullLL[0], fullLL[fullLL.length - 1]]) {
       group.addLayer(
         L.circleMarker(end, {
           radius: 6,
@@ -339,7 +374,9 @@ export function MapView(props: MapViewProps) {
     };
   }, [dimension, showLive, backend.available]);
 
-  return <div ref={containerRef} className="map-canvas" />;
+  return (
+    <div ref={containerRef} className={`map-canvas${props.routePicking ? " route-picking" : ""}`} />
+  );
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";

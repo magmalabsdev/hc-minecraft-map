@@ -29,10 +29,11 @@ export const LOD_COUNT = 3;
 
 export type Dimension = "world" | "world_nether" | "world_the_end";
 
+// Only the Overworld is surfaced in the UI — the Nether and End are never
+// mirrored, so they'd be empty map options. The type keeps the other two so
+// the backend/tile plumbing stays dimension-generic.
 export const DIMENSIONS: { id: Dimension; label: string }[] = [
   { id: "world", label: "Overworld" },
-  { id: "world_nether", label: "Nether" },
-  { id: "world_the_end", label: "The End" },
 ];
 
 /** How many blocks a single lod texel spans. lod 1 -> 1 block, lod 2 -> 5, ... */

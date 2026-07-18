@@ -6,8 +6,8 @@ import type { OverlayToggles, OverlayHandlers } from "./map/renderOverlays";
 import { type BackendStatus, checkBackend } from "./api";
 import { useOverlays } from "./data/useOverlays";
 import { Inspector } from "./edit/Inspector";
-import { RoutePanel } from "./route/RoutePanel";
-import type { RouteResult } from "./route/engine";
+import { RoutePanel, type PickWhich } from "./route/RoutePanel";
+import { type RoutePlace, type RouteResult, centroidOf, landmarkPos } from "./route/engine";
 import {
   type ActiveLayer,
   type EditState,
@@ -58,6 +58,9 @@ export default function App() {
   const [cursor, setCursor] = useState<{ x: number; z: number } | null>(null);
   const [showRoute, setShowRoute] = useState(false);
   const [route, setRoute] = useState<RouteResult | null>(null);
+  const [routeFrom, setRouteFrom] = useState<RoutePlace | null>(null);
+  const [routeTo, setRouteTo] = useState<RoutePlace | null>(null);
+  const [routePick, setRoutePick] = useState<PickWhich>(null);
   const [edit, setEdit] = useState<EditState>({
     enabled: false,
     layer: "highway",
@@ -71,11 +74,55 @@ export default function App() {
     void checkBackend().then(setBackend);
   }, []);
 
+  // --- route endpoint picking (click anything on the map) ---
+  const placeFromSelection = useCallback(
+    (sel: Selection): RoutePlace | null => {
+      if (!sel) return null;
+      if (sel.type === "landmark") {
+        const lm = overlays.landmarks.landmarks.find((l) => l.id === sel.id);
+        const pos = lm ? landmarkPos(lm) : null;
+        return lm && pos ? { kind: "landmark", id: lm.id, name: lm.name, pos } : null;
+      }
+      if (sel.type === "station") {
+        const st = overlays.railways.stations.find((s) => s.id === sel.id);
+        return st ? { kind: "station", id: st.id, name: st.name, pos: centroidOf(st.polygon) } : null;
+      }
+      if (sel.type === "district") {
+        const d = overlays.districts.districts.find((x) => x.id === sel.id);
+        return d
+          ? { kind: "district", id: d.id, name: d.name, pos: d.labelPos ?? centroidOf(d.polygon) }
+          : null;
+      }
+      return null;
+    },
+    [overlays],
+  );
+
+  const applyRoutePick = useCallback(
+    (place: RoutePlace) => {
+      if (routePick === "to") {
+        setRouteTo(place);
+        setRoutePick(null);
+      } else {
+        setRouteFrom(place);
+        // Auto-advance to picking the destination if it isn't chosen yet.
+        setRoutePick(routeTo ? null : "to");
+      }
+    },
+    [routePick, routeTo],
+  );
+
   // --- map interaction ---
   const onMapClick = useCallback(
     (block: { x: number; z: number }) => {
-      if (!edit.enabled) return;
       const { x, z } = block;
+      // Route picking intercepts empty-ground clicks (feature clicks come through
+      // onSelect) so a bare coordinate can be a start/destination too.
+      if (showRoute && routePick) {
+        applyRoutePick({ kind: "point", name: `${Math.round(x)}, ${Math.round(z)}`, pos: { x, z } });
+        return;
+      }
+      if (!edit.enabled) return;
       if (edit.layer === "landmark") {
         if (edit.tool === "landmark-point") {
           let id = "";
@@ -116,7 +163,7 @@ export default function App() {
         selection: { type: "route", net: kind, id: routeId },
       }));
     },
-    [edit, overlays],
+    [edit, overlays, showRoute, routePick, applyRoutePick],
   );
 
   const onMapDblClick = useCallback(() => {
@@ -173,6 +220,15 @@ export default function App() {
   const overlayHandlers: OverlayHandlers = useMemo(
     () => ({
       onSelect: (sel: Selection) => {
+        // While picking a route endpoint, clicking a landmark / station /
+        // district sets that endpoint instead of opening its inspector.
+        if (showRoute && routePick) {
+          const place = placeFromSelection(sel);
+          if (place) {
+            applyRoutePick(place);
+            return;
+          }
+        }
         // Clicking an existing point while drawing a line connects to it.
         if (
           sel &&
@@ -247,7 +303,7 @@ export default function App() {
         });
       },
     }),
-    [edit, overlays, applyPolyTarget],
+    [edit, overlays, applyPolyTarget, showRoute, routePick, placeFromSelection, applyRoutePick],
   );
 
   // Delete key removes the selected point, polygon vertex, or whole route.
@@ -324,6 +380,7 @@ export default function App() {
         edit={edit}
         overlayHandlers={overlayHandlers}
         route={route}
+        routePicking={showRoute && routePick !== null}
         onCursor={setCursor}
         onMapClick={onMapClick}
         onMapDblClick={onMapDblClick}
@@ -335,7 +392,12 @@ export default function App() {
           <button
             className={`route-toggle ${showRoute ? "active" : ""}`}
             title="Route finder"
-            onClick={() => setShowRoute((v) => !v)}
+            onClick={() =>
+              setShowRoute((v) => {
+                if (v) setRoutePick(null); // leaving the panel ends any pending pick
+                return !v;
+              })
+            }
           >
             🧭
           </button>
@@ -472,7 +534,15 @@ export default function App() {
           dimension={dimension}
           highways={overlays.highways}
           railways={overlays.railways}
-          landmarks={overlays.landmarks}
+          from={routeFrom}
+          to={routeTo}
+          pick={routePick}
+          onPick={setRoutePick}
+          onClearEndpoint={(which) => (which === "from" ? setRouteFrom(null) : setRouteTo(null))}
+          onSwap={() => {
+            setRouteFrom(routeTo);
+            setRouteTo(routeFrom);
+          }}
           onRoute={setRoute}
         />
       )}

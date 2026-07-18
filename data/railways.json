@@ -293,8 +293,8 @@
     },
     "n_mrlf494i2b": {
       "id": "n_mrlf494i2b",
-      "x": 465,
-      "z": -667
+      "x": 466,
+      "z": -471
     },
     "n_mrlf4anp2d": {
       "id": "n_mrlf4anp2d",
@@ -304,12 +304,12 @@
     "n_mrlf4d0c2f": {
       "id": "n_mrlf4d0c2f",
       "x": 466,
-      "z": -13
+      "z": -19
     },
     "n_mrlf4ew62h": {
       "id": "n_mrlf4ew62h",
-      "x": 384,
-      "z": -11
+      "x": 385,
+      "z": -17
     },
     "n_mrlf4lp12j": {
       "id": "n_mrlf4lp12j",
@@ -573,8 +573,8 @@
     },
     "n_mrn9nx3t27": {
       "id": "n_mrn9nx3t27",
-      "x": 393,
-      "z": 38
+      "x": 377,
+      "z": 39
     },
     "n_mrn9nyyk29": {
       "id": "n_mrn9nyyk29",
@@ -583,8 +583,8 @@
     },
     "n_mrn9o6rz2b": {
       "id": "n_mrn9o6rz2b",
-      "x": 236,
-      "z": 146
+      "x": 208,
+      "z": 139
     },
     "n_mrn9o8iw2d": {
       "id": "n_mrn9o8iw2d",
@@ -650,6 +650,16 @@
       "id": "n_mro6h04l1i",
       "x": 384,
       "z": 13
+    },
+    "n_mrq6yh589": {
+      "id": "n_mrq6yh589",
+      "x": 236,
+      "z": 138
+    },
+    "n_mrqaupij2": {
+      "id": "n_mrqaupij2",
+      "x": 396,
+      "z": 14
     }
   },
   "segments": {
@@ -1076,16 +1086,6 @@
       "paved": true,
       "built": false
     },
-    "n_mrleyoga1m::n_mrlf2mx624": {
-      "id": "n_mrleyoga1m::n_mrlf2mx624",
-      "a": "n_mrlf2mx624",
-      "b": "n_mrleyoga1m",
-      "width": 3,
-      "flat": false,
-      "lit": false,
-      "paved": true,
-      "built": false
-    },
     "n_mrleyn1x1k::n_mrlf2pb426": {
       "id": "n_mrleyn1x1k::n_mrlf2pb426",
       "a": "n_mrleyn1x1k",
@@ -1112,9 +1112,10 @@
       "b": "n_mrlf4anp2d",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4anp2d::n_mrlf4d0c2f": {
       "id": "n_mrlf4anp2d::n_mrlf4d0c2f",
@@ -1122,9 +1123,10 @@
       "b": "n_mrlf4d0c2f",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4d0c2f::n_mrlf4ew62h": {
       "id": "n_mrlf4d0c2f::n_mrlf4ew62h",
@@ -1132,9 +1134,10 @@
       "b": "n_mrlf4ew62h",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4lp12j::n_mrlf4nes2l": {
       "id": "n_mrlf4lp12j::n_mrlf4nes2l",
@@ -1142,9 +1145,10 @@
       "b": "n_mrlf4nes2l",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrk1vh247::n_mrlf4nes2l": {
       "id": "n_mrk1vh247::n_mrlf4nes2l",
@@ -1152,9 +1156,10 @@
       "b": "n_mrk1vh247",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrk1vh247::n_mrlf4r6u2n": {
       "id": "n_mrk1vh247::n_mrlf4r6u2n",
@@ -1162,9 +1167,10 @@
       "b": "n_mrlf4r6u2n",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4r6u2n::n_mrlf4t8k2p": {
       "id": "n_mrlf4r6u2n::n_mrlf4t8k2p",
@@ -1172,9 +1178,10 @@
       "b": "n_mrlf4t8k2p",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4t8k2p::n_mrlf4v362r": {
       "id": "n_mrlf4t8k2p::n_mrlf4v362r",
@@ -1182,9 +1189,10 @@
       "b": "n_mrlf4v362r",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4v362r::n_mrlf4w852t": {
       "id": "n_mrlf4v362r::n_mrlf4w852t",
@@ -1192,9 +1200,10 @@
       "b": "n_mrlf4w852t",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4w852t::n_mrlf4zi92v": {
       "id": "n_mrlf4w852t::n_mrlf4zi92v",
@@ -1202,9 +1211,10 @@
       "b": "n_mrlf4zi92v",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4zi92v::n_mrlf51qg2x": {
       "id": "n_mrlf4zi92v::n_mrlf51qg2x",
@@ -1212,9 +1222,10 @@
       "b": "n_mrlf51qg2x",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf51qg2x::n_mrlf54182z": {
       "id": "n_mrlf51qg2x::n_mrlf54182z",
@@ -1222,9 +1233,10 @@
       "b": "n_mrlf54182z",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrjxn17o2p::n_mrljnk9q2": {
       "id": "n_mrjxn17o2p::n_mrljnk9q2",
@@ -1671,22 +1683,12 @@
       "flat": false,
       "lit": false,
       "paved": true,
-      "built": false
+      "built": true
     },
     "n_mrn9nx3t27::n_mrn9nyyk29": {
       "id": "n_mrn9nx3t27::n_mrn9nyyk29",
       "a": "n_mrn9nx3t27",
       "b": "n_mrn9nyyk29",
-      "width": 3,
-      "flat": false,
-      "lit": false,
-      "paved": true,
-      "built": false
-    },
-    "n_mrn9nyyk29::n_mrn9o6rz2b": {
-      "id": "n_mrn9nyyk29::n_mrn9o6rz2b",
-      "a": "n_mrn9nyyk29",
-      "b": "n_mrn9o6rz2b",
       "width": 3,
       "flat": false,
       "lit": false,
@@ -1731,7 +1733,7 @@
       "flat": false,
       "lit": false,
       "paved": true,
-      "built": false
+      "built": true
     },
     "n_mrn9ocmb2h::n_mrn9x1n92p": {
       "id": "n_mrn9ocmb2h::n_mrn9x1n92p",
@@ -1886,9 +1888,10 @@
       "b": "n_mro6h04l1i",
       "width": 3,
       "flat": false,
-      "lit": false,
+      "lit": true,
       "paved": true,
-      "built": false
+      "built": false,
+      "tunnelY": 45
     },
     "n_mrlf4lp12j::n_mro6h04l1i": {
       "id": "n_mrlf4lp12j::n_mro6h04l1i",
@@ -1896,9 +1899,48 @@
       "b": "n_mrlf4lp12j",
       "width": 3,
       "flat": false,
+      "lit": true,
+      "paved": true,
+      "built": true,
+      "tunnelY": 45
+    },
+    "n_mrn9nyyk29::n_mrq6yh589": {
+      "id": "n_mrn9nyyk29::n_mrq6yh589",
+      "a": "n_mrn9nyyk29",
+      "b": "n_mrq6yh589",
+      "width": 3,
+      "flat": false,
       "lit": false,
       "paved": true,
       "built": false
+    },
+    "n_mrn9o6rz2b::n_mrq6yh589": {
+      "id": "n_mrn9o6rz2b::n_mrq6yh589",
+      "a": "n_mrq6yh589",
+      "b": "n_mrn9o6rz2b",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true,
+      "built": false
+    },
+    "n_mrlf2mx624::n_mrqaupij2": {
+      "id": "n_mrlf2mx624::n_mrqaupij2",
+      "a": "n_mrlf2mx624",
+      "b": "n_mrqaupij2",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
+    },
+    "n_mrleyoga1m::n_mrqaupij2": {
+      "id": "n_mrleyoga1m::n_mrqaupij2",
+      "a": "n_mrqaupij2",
+      "b": "n_mrleyoga1m",
+      "width": 3,
+      "flat": false,
+      "lit": false,
+      "paved": true
     }
   },
   "routes": [
@@ -2084,6 +2126,7 @@
         "n_mrleyn1x1k",
         "n_mrlf2pb426",
         "n_mrlf2mx624",
+        "n_mrqaupij2",
         "n_mrleyoga1m",
         "n_mrleyq8b1o"
       ],
@@ -2121,9 +2164,10 @@
       "defaults": {
         "width": 3,
         "flat": false,
-        "lit": false,
+        "lit": true,
         "paved": true,
-        "built": false
+        "built": false,
+        "tunnelY": 45
       },
       "operator": "Magma Labs "
     },
@@ -2241,6 +2285,7 @@
         "n_mrn9nvhn25",
         "n_mrn9nx3t27",
         "n_mrn9nyyk29",
+        "n_mrq6yh589",
         "n_mrn9o6rz2b",
         "n_mrn9o8iw2d",
         "n_mrn9oaj32f",
@@ -2633,19 +2678,19 @@
       "name": "Daydream Forest - North Third Ring",
       "polygon": [
         {
-          "x": -7,
+          "x": -8,
           "z": -532
         },
         {
-          "x": -7,
+          "x": -8,
           "z": -490
         },
         {
-          "x": 10,
+          "x": 9,
           "z": -490
         },
         {
-          "x": 10,
+          "x": 9,
           "z": -532
         }
       ],
@@ -3533,8 +3578,8 @@
           "id": "se_mro3daq1s",
           "name": "D",
           "point": {
-            "x": 33,
-            "z": 77
+            "x": 35,
+            "z": 47
           },
           "kind": "both"
         }
@@ -3545,20 +3590,36 @@
       "name": "Dongshan Arena",
       "polygon": [
         {
-          "x": 376,
-          "z": -8
+          "x": 368,
+          "z": -10
         },
         {
-          "x": 375,
-          "z": 10
+          "x": 363,
+          "z": 7
         },
         {
-          "x": 400,
-          "z": 10
+          "x": 367,
+          "z": 26
         },
         {
-          "x": 400,
-          "z": -9
+          "x": 387,
+          "z": 31
+        },
+        {
+          "x": 407,
+          "z": 25
+        },
+        {
+          "x": 411,
+          "z": 7
+        },
+        {
+          "x": 407,
+          "z": -10
+        },
+        {
+          "x": 389,
+          "z": -17
         }
       ],
       "lineIds": [
@@ -3567,7 +3628,7 @@
         "r_mrn9efzvo",
         "r_mrn9msf41f"
       ],
-      "built": false
+      "built": true
     },
     {
       "id": "st_mrlf5wmu31",
@@ -3682,7 +3743,7 @@
     },
     {
       "id": "st_mrlf7ui435",
-      "name": "Station 31",
+      "name": "Dongshan Park",
       "polygon": [
         {
           "x": 456,
@@ -3709,7 +3770,7 @@
     },
     {
       "id": "st_mrlf82eq37",
-      "name": "Station 32",
+      "name": "Weilai South",
       "polygon": [
         {
           "x": 456,
@@ -3736,7 +3797,7 @@
     },
     {
       "id": "st_mrlf89qq39",
-      "name": "Station 33",
+      "name": "Weilai",
       "polygon": [
         {
           "x": 456,
@@ -3764,7 +3825,7 @@
     },
     {
       "id": "st_mrlf8i4r3b",
-      "name": "Northeast Third Ring",
+      "name": "Northeast Third Ring - Weilai North",
       "polygon": [
         {
           "x": 455,
@@ -3790,7 +3851,7 @@
     },
     {
       "id": "st_mrlfb60r3d",
-      "name": "Station 35",
+      "name": "Dongshan River",
       "polygon": [
         {
           "x": 200,
@@ -4126,34 +4187,8 @@
       "built": false
     },
     {
-      "id": "st_mrn9xy8m2r",
-      "name": "Station 40",
-      "polygon": [
-        {
-          "x": 459,
-          "z": -649
-        },
-        {
-          "x": 457,
-          "z": -636
-        },
-        {
-          "x": 472,
-          "z": -637
-        },
-        {
-          "x": 473,
-          "z": -649
-        }
-      ],
-      "lineIds": [
-        "r_mrlf494h29"
-      ],
-      "built": false
-    },
-    {
       "id": "st_mro6hyvn1k",
-      "name": "Station 40",
+      "name": "Lodestone HQ",
       "polygon": [
         {
           "x": 530,
