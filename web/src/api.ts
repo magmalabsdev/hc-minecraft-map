@@ -6,7 +6,14 @@ import type { Dimension } from "@hcmap/shared";
  * marker data when a local backend is present.
  */
 
-export type BaseVariant = "terrain" | "minimal" | "bands" | "biome" | "difference";
+export type BaseVariant =
+  | "terrain"
+  | "minimal"
+  | "bands"
+  | "biome"
+  | "difference"
+  | "difference-filtered"
+  | "water"; // overlay mask (black where water), not a standalone base mode
 
 /**
  * Prefix an absolute app path with Vite's base URL, so the app works both at the

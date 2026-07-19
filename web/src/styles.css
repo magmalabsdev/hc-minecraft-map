@@ -50,6 +50,12 @@ body,
   background: #12161b;
 }
 
+/* "Solid Color" base mode — no imagery at all, just a flat background so
+   overlays (highways, railways, landmarks, districts) read on their own. */
+.map-canvas.base-blank {
+  background: #20242b;
+}
+
 /* Terrain tiles are pixel art — keep them crisp. */
 .leaflet-container img.leaflet-tile {
   image-rendering: pixelated;
@@ -83,6 +89,8 @@ body,
   border-radius: 12px;
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
 }
 
 .panel-title {
@@ -146,6 +154,28 @@ button.active {
   font-size: 13px;
   margin-bottom: 6px;
   cursor: pointer;
+}
+
+.operator-filter {
+  margin: -2px 0 8px 20px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+/* Mode-specific sub-option nested under a Map type button. */
+.mode-sub-check {
+  margin: 2px 0 4px 20px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--panel-muted);
+}
+.operator-filter .operator-check {
+  font-size: 12px;
+  color: var(--panel-muted);
+  margin-bottom: 4px;
+}
+.operator-filter .hint {
+  margin: 2px 0 4px;
 }
 
 .status {
@@ -375,6 +405,45 @@ button.danger {
 .entrance-row .field-row button.danger {
   flex: 0 0 auto;
   padding: 5px 10px;
+}
+
+/* --- edit-mode line manager (merge / delete without clicking a path) --- */
+.line-manager {
+  margin-top: 4px;
+}
+.line-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.line-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+.line-row.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+.line-row-check {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.line-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.line-row-delete {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 /* --- editable node markers --- */
@@ -644,16 +713,11 @@ button.danger {
   border-color: var(--accent);
 }
 
-/* --- station entrance/exit markers --- */
-.access-marker-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-  cursor: grab;
-}
+/* --- station entrance/exit markers ---
+   The badge (access-marker) and its name label (access-label-marker) are
+   separate Leaflet markers so only the small badge is clickable/draggable —
+   the label never enlarges that hitbox. */
 .access-marker .access-badge {
-  flex: 0 0 auto;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -664,10 +728,14 @@ button.danger {
   color: #14161a;
   border: 1.5px solid rgba(0, 0, 0, 0.6);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: grab;
 }
 .access-badge.entrance { background: #2ecc71; }
 .access-badge.exit { background: #ff6b6b; }
 .access-badge.both { background: #f2c94c; }
+.access-label-marker {
+  pointer-events: none;
+}
 .access-label {
   font-size: 10px;
   font-weight: 600;
@@ -676,6 +744,7 @@ button.danger {
   padding: 1px 5px;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 /* --- tunnel view crossing markers (hollow, grade-separated) --- */
@@ -691,6 +760,14 @@ button.danger {
   background: rgba(20, 22, 26, 0.75);
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+/* Height difference unknown (tunnel Y missing on at least one path) — never
+   guessed as zero, flagged instead. */
+.crossing-marker .crossing-badge.unknown {
+  color: #14161a;
+  background: #ff9f1a;
+  border-color: #ff9f1a;
+  font-size: 13px;
 }
 
 /* --- midpoint insert handles --- */
@@ -755,6 +832,19 @@ button.danger {
   height: 17px;
   image-rendering: pixelated;
   display: block;
+}
+/* Plain single-line stop (not a transfer or terminus) — regular-landmark size. */
+.landmark-marker .lm-badge.station-pie.small {
+  width: 28px;
+  height: 28px;
+}
+.lm-badge.station-pie.small .station-inner {
+  width: 17px;
+  height: 17px;
+}
+.lm-badge.station-pie.small .station-inner img {
+  width: 12px;
+  height: 12px;
 }
 
 /* --- route map dialog --- */

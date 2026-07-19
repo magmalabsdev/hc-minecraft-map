@@ -1,80 +1,89 @@
-import fs from "node:fs";
-import path from "node:path";
-import { DensityFunction, NoiseGeneratorSettings, RandomState } from "deepslate";
-import { loadWorldgenData, VENDOR_DIR } from "./biome";
+import { DensityFunction, RandomState } from "deepslate";
+import { loadOverworldSettings, loadWorldgenData } from "./biome";
 
 /**
- * The original (seed-generated, pre-player) surface height at a block column,
- * used by the "Difference" map view to measure how far the live world has been
- * terraformed from the vanilla terrain the seed would have produced.
+ * The topmost block Y a freshly-generated world (same seed, no players) would
+ * have at a column — the baseline the "Difference" map view compares the live
+ * world against.
  *
- * We deliberately do NOT use deepslate's `NoiseChunkGenerator.getBaseHeight()`:
- * with this vendored worldgen data + deepslate 0.26.0 the full terrain-solidity
- * function (`final_density`/`sloped_cheese`) is broken and puts the surface
- * ~110 blocks too low. Instead we read the `depth` density function, which
- * computes correctly and, by construction, crosses zero right at the intended
- * surface elevation (`depth = y_clamped_gradient(y) + offset(x,z)`). Because
- * `depth` is *linear in y* (offset is y-independent), the surface is the
- * analytic zero-crossing of two samples — no per-block column iteration, so
- * this is also ~750x faster than getBaseHeight.
+ * This runs the REAL vanilla terrain pipeline: the noise router's
+ * `final_density` graph (3D noise, jaggedness, cave carvers — everything),
+ * made to parse correctly by the `interval_select` compatibility rewrite in
+ * biome.ts. The surface is the topmost y where final_density > 0 (solid),
+ * scanned downward from just above the router's own preliminary surface
+ * estimate. Direct `.compute()` calls go through deepslate's `Interpolated`
+ * wrappers, which lerp cell corners exactly like in-game chunk generation —
+ * so results are block-accurate (verified matching the live map exactly in
+ * un-terraformed terrain).
  *
- * This yields the *smooth generated* surface: it omits the fine 3D-noise wiggle
- * (jaggedness, small hills/ravines) and all decoration (trees), so rugged
- * natural terrain and tree cover show a small nonzero difference even with no
- * player edits. Same category of approximation as classifyBiome (see biome.ts).
+ * The one remaining approximation: feature decoration (trees, etc.) is not
+ * simulated, so natural tree canopy reads as a small difference vs BlueMap's
+ * top rendered block.
  */
 
-interface DepthState {
+const WORLD_TOP = 320;
+const WORLD_BOTTOM = -64;
+/** Blocks above the preliminary-surface estimate where the scan starts.
+ *  Jaggedness peaks reach ~+16 over it; 40 is a generous safety margin. */
+const SCAN_MARGIN = 40;
+
+interface HeightState {
   seed: bigint;
-  depth: DensityFunction;
+  finalDensity: DensityFunction;
+  preliminarySurface: DensityFunction;
   seaLevel: number;
 }
 
-let cached: DepthState | null = null;
+let cached: HeightState | null = null;
 let callsSinceReset = 0;
 
 /**
- * deepslate memoizes every density-function interpolation "corner" it evaluates,
- * per RandomState, with no eviction (DensityFunction.js `Interpolated.values`).
- * Over a full-map run that unbounded Map eventually overflows JS's max Map size
- * ("RangeError: Map maximum size exceeded"). Rebuilding a fresh RandomState
- * periodically resets those caches; the result is identical either way since
- * RandomState is a pure function of (settings, seed) — a memory-management
- * detail, not a behaviour change. The depth path is light, so a large interval
- * keeps the (few-ms) rebuild cost negligible while staying well under the limit.
+ * deepslate memoizes every `Interpolated` cell corner it evaluates, per
+ * RandomState, in unbounded Maps — over a long run those overflow JS's max
+ * Map size ("RangeError: Map maximum size exceeded"). Rebuilding the
+ * RandomState resets them; results are identical either way (it's a pure
+ * function of settings + seed). preprocess.ts calls resetOriginalHeightCaches
+ * per tile; the call counter is a backstop for other callers.
  */
-const RESET_INTERVAL = 500_000;
+const RESET_INTERVAL = 300_000;
 
-/** Two y samples inside the y_clamped_gradient's linear range (-64..320). */
-const Y0 = 0;
-const Y1 = 128;
-
-function freshState(seed: bigint): DepthState {
-  const overworldSettings = JSON.parse(
-    fs.readFileSync(path.join(VENDOR_DIR, "noise_settings/overworld.json"), "utf8"),
-  );
-  const settings = NoiseGeneratorSettings.fromJson(overworldSettings);
-  const randomState = new RandomState(settings, seed);
-  return { seed, depth: randomState.router.depth, seaLevel: settings.seaLevel };
+export function resetOriginalHeightCaches(): void {
+  cached = null;
+  callsSinceReset = 0;
 }
 
-function stateFor(seed: bigint): DepthState {
+function stateFor(seed: bigint): HeightState {
   loadWorldgenData();
   if (cached && cached.seed === seed && callsSinceReset < RESET_INTERVAL) return cached;
-  cached = freshState(seed);
+  const settings = loadOverworldSettings();
+  const randomState = new RandomState(settings, seed);
+  cached = {
+    seed,
+    finalDensity: randomState.router.finalDensity,
+    preliminarySurface: randomState.router.preliminarySurfaceLevel,
+    seaLevel: settings.seaLevel,
+  };
   callsSinceReset = 0;
   return cached;
 }
 
 export function originalHeight(seed: bigint, x: number, z: number): number {
-  const { depth, seaLevel } = stateFor(seed);
+  const { finalDensity, preliminarySurface, seaLevel } = stateFor(seed);
   callsSinceReset++;
-  const d0 = depth.compute(DensityFunction.context(x, Y0, z));
-  const d1 = depth.compute(DensityFunction.context(x, Y1, z));
-  const slope = (d1 - d0) / (Y1 - Y0); // depth decreases with y, so slope < 0
-  const surface = Y0 - d0 / slope; // zero-crossing of the line through the two samples
-  // A fresh world fills anything below sea level with water, and BlueMap reports
-  // that water surface as the "current" height — so clamp the bare terrain floor
-  // up to the water surface, otherwise every ocean reads as a large false diff.
-  return Math.max(Math.round(surface), seaLevel - 1);
+  const ctx = DensityFunction.context;
+
+  const guess = Math.floor(preliminarySurface.compute(ctx(x, 0, z)));
+  let top = Math.min(WORLD_TOP, guess + SCAN_MARGIN);
+  // Never start inside solid ground: if the margin above the estimate is
+  // still solid (a freak spike), walk up until we reach air.
+  while (top < WORLD_TOP && finalDensity.compute(ctx(x, top, z)) > 0) top++;
+
+  for (let y = top; y >= WORLD_BOTTOM; y--) {
+    if (finalDensity.compute(ctx(x, y, z)) > 0) {
+      // Topmost solid block. A fresh world floods everything below sea level
+      // with water, and BlueMap reports the water surface as the top block.
+      return Math.max(y, seaLevel - 1);
+    }
+  }
+  return seaLevel - 1; // no solid found (deep ocean column) -> water surface
 }

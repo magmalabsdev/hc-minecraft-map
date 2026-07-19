@@ -49,3 +49,18 @@ export const BIOME_CELL_SIZE = 50;
  * far worse than the original smooth solid-color bands tiles.
  */
 export const BANDS_SUPERSAMPLE = 2;
+
+/**
+ * Blocks from world origin (0,0) within which the "difference" simulation runs
+ * at full per-block resolution. Each column costs ~0.1-0.15ms of real terrain
+ * generation, so the expensive detail is spent where people look closely —
+ * the same spawn-region scoping used for BANDS_SUPERSAMPLE.
+ */
+export const DIFFERENCE_FINE_RADIUS = 1024;
+
+/**
+ * Outside DIFFERENCE_FINE_RADIUS, the fresh-world height is sampled once per
+ * this-many-blocks-square cell (4 -> 1/16 of the columns) and reused across
+ * the cell. Keeps the full ±15000 bake to ~2 hours.
+ */
+export const DIFFERENCE_COARSE_CELL = 4;

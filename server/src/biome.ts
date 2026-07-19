@@ -36,8 +36,55 @@ export function loadWorldgenData(): void {
     WorldgenRegistries.NOISE.register(Identifier.parse(id), NoiseParameters.fromJson(json));
   });
   walk(path.join(VENDOR_DIR, "density_function"), (id, json) => {
-    WorldgenRegistries.DENSITY_FUNCTION.register(Identifier.parse(id), DensityFunction.fromJson(json));
+    WorldgenRegistries.DENSITY_FUNCTION.register(
+      Identifier.parse(id),
+      DensityFunction.fromJson(rewriteUnsupportedDensityFunctions(json)),
+    );
   });
+}
+
+/**
+ * The vendored worldgen data comes from a newer Minecraft version than the
+ * deepslate release we use understands. Deepslate silently parses any unknown
+ * density-function type as constant 0 — and `minecraft:interval_select`
+ * (used by the overworld cave functions) landing as 0 inside final_density's
+ * `min(...)` chain flattens the ENTIRE world to air. This rewrites every
+ * `interval_select` node into an exactly-equivalent chain of nested
+ * `range_choice` nodes (which deepslate does support) before parsing:
+ * pick functions[i] when input ∈ [thresholds[i-1], thresholds[i]), the last
+ * function for input ≥ the last threshold. The selector is wrapped in
+ * `cache_once` so the chain doesn't recompute it at every link. Boundary
+ * inclusivity is a measure-zero concern on continuous noise inputs.
+ */
+export function rewriteUnsupportedDensityFunctions(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(rewriteUnsupportedDensityFunctions);
+  if (node && typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    if (obj.type === "minecraft:interval_select") {
+      const input = {
+        type: "minecraft:cache_once",
+        argument: rewriteUnsupportedDensityFunctions(obj.input),
+      };
+      const fns = (obj.functions as unknown[]).map(rewriteUnsupportedDensityFunctions);
+      const ts = obj.thresholds as number[];
+      let out = fns[fns.length - 1];
+      for (let i = ts.length - 1; i >= 0; i--) {
+        out = {
+          type: "minecraft:range_choice",
+          input,
+          min_inclusive: i === 0 ? -1e9 : ts[i - 1],
+          max_exclusive: ts[i],
+          when_in_range: fns[i],
+          when_out_of_range: out,
+        };
+      }
+      return out;
+    }
+    const rewritten: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) rewritten[k] = rewriteUnsupportedDensityFunctions(v);
+    return rewritten;
+  }
+  return node;
 }
 
 function walk(dir: string, cb: (id: string, json: unknown) => void, base = dir): void {
@@ -57,13 +104,18 @@ let cached: { seed: bigint; sampler: Climate.Sampler } | null = null;
 export function climateSampler(seed: bigint): Climate.Sampler {
   loadWorldgenData();
   if (cached && cached.seed === seed) return cached.sampler;
-  const overworldSettings = JSON.parse(
-    fs.readFileSync(path.join(VENDOR_DIR, "noise_settings/overworld.json"), "utf8"),
-  );
-  const settings = NoiseGeneratorSettings.fromJson(overworldSettings);
+  const settings = loadOverworldSettings();
   const randomState = new RandomState(settings, seed);
   cached = { seed, sampler: randomState.sampler };
   return randomState.sampler;
+}
+
+/** Parse the vendored overworld noise settings (with the compatibility rewrite). */
+export function loadOverworldSettings(): NoiseGeneratorSettings {
+  const overworldSettings = JSON.parse(
+    fs.readFileSync(path.join(VENDOR_DIR, "noise_settings/overworld.json"), "utf8"),
+  );
+  return NoiseGeneratorSettings.fromJson(rewriteUnsupportedDensityFunctions(overworldSettings));
 }
 
 export interface ClimatePoint {

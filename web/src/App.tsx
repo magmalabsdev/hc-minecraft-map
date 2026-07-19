@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DIMENSIONS, type Dimension } from "@hcmap/shared";
+import { DIMENSIONS, type Dimension, type Id } from "@hcmap/shared";
 import { MapView, type BaseMode } from "./map/MapView";
 import { ResistorKey } from "./map/ResistorKey";
 import type { OverlayToggles, OverlayHandlers } from "./map/renderOverlays";
 import { type BackendStatus, checkBackend } from "./api";
-import { useOverlays } from "./data/useOverlays";
+import { type LineKind, type Overlays, useOverlays } from "./data/useOverlays";
 import { Inspector } from "./edit/Inspector";
 import { RoutePanel, type PickWhich } from "./route/RoutePanel";
 import { type RoutePlace, type RouteResult, centroidOf, landmarkPos } from "./route/engine";
 import {
   type ActiveLayer,
   type EditState,
+  type Network,
   type PolyTarget,
   type Selection,
   type Tool,
@@ -29,13 +30,24 @@ import {
   insertNodeInSegment,
   insertPolyVertex,
   mergeNodes,
+  mergeRoutes,
   moveNode,
   movePolyVertex,
   moveStationEntrance,
   newId,
+  routeSegmentCount,
 } from "./edit/model";
 
 const SNAP_TOL = 6; // blocks — click within this of a point to connect to it
+
+const DEFAULT_OPERATOR = "Magma Labs";
+const UNASSIGNED_OPERATOR = "(no operator)";
+
+/** Normalized operator grouping key — trims whitespace, buckets untagged routes. */
+function operatorKey(operator: string | undefined): string {
+  const trimmed = operator?.trim();
+  return trimmed || UNASSIGNED_OPERATOR;
+}
 
 export default function App() {
   const overlays = useOverlays();
@@ -45,12 +57,24 @@ export default function App() {
   const [showContours, setShowContours] = useState(false);
   const [showLive, setShowLive] = useState(true);
   const [showTunnelDepths, setShowTunnelDepths] = useState(false);
+  // Difference mode: hide natural canopy/ravine differences (filtered tile
+  // variant). Toggleable because the filter can misread small player builds.
+  const [hideNaturalDiffs, setHideNaturalDiffs] = useState(true);
+  // Terrain 2D: overlay the baked water mask, since elevation bands alone
+  // can't tell water from land at the same height.
+  const [blackoutWater, setBlackoutWater] = useState(false);
   const [toggles, setToggles] = useState<OverlayToggles>({
     highway: true,
     railway: true,
     landmark: true,
     district: true,
   });
+  // Railway operator subsetting — which operators' lines currently render.
+  // Keyed by trimmed operator name (data has inconsistent trailing whitespace),
+  // with untagged routes grouped under UNASSIGNED_OPERATOR. Newly-seen
+  // operators default to hidden except DEFAULT_OPERATOR; once a user flips a
+  // switch, that choice is preserved as more operators are discovered.
+  const [operatorVisible, setOperatorVisible] = useState<Record<string, boolean>>({});
   const [backend, setBackend] = useState<BackendStatus>({
     available: false,
     editable: false,
@@ -73,6 +97,32 @@ export default function App() {
   useEffect(() => {
     void checkBackend().then(setBackend);
   }, []);
+
+  // Seed newly-discovered railway operators with a default (only Magma Labs
+  // visible at first), without disturbing operators the user already toggled.
+  useEffect(() => {
+    const seen = new Set(overlays.railways.routes.map((r) => operatorKey(r.operator)));
+    setOperatorVisible((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const op of seen) {
+        if (!(op in next)) {
+          next[op] = op === DEFAULT_OPERATOR;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [overlays.railways.routes]);
+
+  const railwayOperators = useMemo(
+    () => [...new Set(overlays.railways.routes.map((r) => operatorKey(r.operator)))].sort(),
+    [overlays.railways.routes],
+  );
+  const railwayOperatorVisible = useCallback(
+    (operator: string | undefined) => operatorVisible[operatorKey(operator)] ?? true,
+    [operatorVisible],
+  );
 
   // --- route endpoint picking (click anything on the map) ---
   const placeFromSelection = useCallback(
@@ -381,6 +431,9 @@ export default function App() {
         overlayHandlers={overlayHandlers}
         route={route}
         routePicking={showRoute && routePick !== null}
+        railwayOperatorVisible={railwayOperatorVisible}
+        hideNaturalDiffs={hideNaturalDiffs}
+        blackoutWater={blackoutWater}
         onCursor={setCursor}
         onMapClick={onMapClick}
         onMapDblClick={onMapDblClick}
@@ -427,6 +480,16 @@ export default function App() {
             <button className={mode === "contour2d" ? "active" : ""} onClick={() => setMode("contour2d")}>
               Terrain 2D
             </button>
+            {mode === "contour2d" && (
+              <label className="check mode-sub-check">
+                <input
+                  type="checkbox"
+                  checked={blackoutWater}
+                  onChange={(e) => setBlackoutWater(e.target.checked)}
+                />
+                Black out water
+              </label>
+            )}
             <button className={mode === "minimal2d" ? "active" : ""} onClick={() => setMode("minimal2d")}>
               Minimal 2D
             </button>
@@ -435,6 +498,19 @@ export default function App() {
             </button>
             <button className={mode === "difference" ? "active" : ""} onClick={() => setMode("difference")}>
               Difference
+            </button>
+            {mode === "difference" && (
+              <label className="check mode-sub-check">
+                <input
+                  type="checkbox"
+                  checked={hideNaturalDiffs}
+                  onChange={(e) => setHideNaturalDiffs(e.target.checked)}
+                />
+                Remove natural features
+              </label>
+            )}
+            <button className={mode === "blank" ? "active" : ""} onClick={() => setMode("blank")}>
+              Solid Color
             </button>
           </div>
         </section>
@@ -449,6 +525,23 @@ export default function App() {
             <input type="checkbox" checked={toggles.railway} onChange={(e) => setToggles((t) => ({ ...t, railway: e.target.checked }))} />
             Railways
           </label>
+          {toggles.railway && railwayOperators.length > 0 && (
+            <div className="operator-filter">
+              {railwayOperators.map((op) => (
+                <label className="check operator-check" key={op}>
+                  <input
+                    type="checkbox"
+                    checked={operatorVisible[op] ?? true}
+                    onChange={(e) =>
+                      setOperatorVisible((prev) => ({ ...prev, [op]: e.target.checked }))
+                    }
+                  />
+                  {op}
+                </label>
+              ))}
+              <p className="hint">Transfer stations always show, regardless of this filter.</p>
+            </div>
+          )}
           <label className="check">
             <input type="checkbox" checked={toggles.landmark} onChange={(e) => setToggles((t) => ({ ...t, landmark: e.target.checked }))} />
             Landmarks
@@ -503,6 +596,8 @@ export default function App() {
             {edit.enabled && (
               <EditTools
                 edit={edit}
+                overlays={overlays}
+                setEdit={setEdit}
                 pickLayer={pickLayer}
                 pickTool={pickTool}
                 onFinish={onMapDblClick}
@@ -562,13 +657,15 @@ export default function App() {
 
 function EditTools(props: {
   edit: EditState;
+  overlays: Overlays;
+  setEdit: (fn: (e: EditState) => EditState) => void;
   pickLayer: (l: ActiveLayer) => void;
   pickTool: (t: Tool) => void;
   onFinish: () => void;
   onSave: () => void;
   dirty: boolean;
 }) {
-  const { edit, pickLayer, pickTool, onFinish, onSave, dirty } = props;
+  const { edit, overlays, setEdit, pickLayer, pickTool, onFinish, onSave, dirty } = props;
   const isLine = edit.layer === "highway" || edit.layer === "railway";
   return (
     <div className="edit-tools">
@@ -625,9 +722,99 @@ function EditTools(props: {
           Finish shape
         </button>
       )}
+      {isLine && edit.tool === "select" && !edit.activeRouteId && (
+        <LineManager
+          net={overlays.network(edit.layer as LineKind)}
+          netKind={edit.layer as LineKind}
+          updateNetwork={(fn) => overlays.updateNetwork(edit.layer as LineKind, fn)}
+          selection={edit.selection}
+          setEdit={setEdit}
+        />
+      )}
       <button className={dirty ? "save dirty" : "save"} style={{ width: "100%", marginTop: 8 }} onClick={onSave}>
         {dirty ? "Save changes ●" : "Saved"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * List every line on the active layer so it can be merged or deleted without
+ * clicking a path on the map — the only way to reach a route today is by
+ * clicking one of its segments, which is impossible for a route with no
+ * segments left (an "empty" line, e.g. after its nodes were removed some
+ * other way).
+ */
+function LineManager(props: {
+  net: Network;
+  netKind: LineKind;
+  updateNetwork: (fn: (net: Network) => void) => void;
+  selection: Selection;
+  setEdit: (fn: (e: EditState) => EditState) => void;
+}) {
+  const { net, netKind, updateNetwork, selection, setEdit } = props;
+  const [mergeSel, setMergeSel] = useState<Id[]>([]);
+  if (!net.routes.length) return null;
+
+  const toggleMerge = (id: Id) =>
+    setMergeSel((sel) => {
+      if (sel.includes(id)) return sel.filter((x) => x !== id);
+      if (sel.length >= 2) return [sel[1], id]; // keep the two most-recently picked
+      return [...sel, id];
+    });
+
+  const clearSelectionIf = (id: Id) =>
+    setEdit((e) => (e.selection?.type === "route" && e.selection.id === id ? { ...e, selection: null } : e));
+
+  return (
+    <div className="line-manager">
+      <label className="section-label" style={{ marginTop: 8 }}>
+        Lines ({net.routes.length})
+      </label>
+      <p className="hint">
+        Check two lines to merge them, or delete one directly — no need to click a path on the map.
+      </p>
+      <div className="line-list">
+        {net.routes.map((r) => {
+          const segCount = routeSegmentCount(net, r);
+          const isSelected = selection?.type === "route" && selection.net === netKind && selection.id === r.id;
+          return (
+            <div className={`line-row${isSelected ? " active" : ""}`} key={r.id}>
+              <label className="check line-row-check">
+                <input type="checkbox" checked={mergeSel.includes(r.id)} onChange={() => toggleMerge(r.id)} />
+                <span className="line-row-name">
+                  {r.name || "(unnamed)"}
+                  {segCount === 0 && <span className="badge bad">empty</span>}
+                </span>
+              </label>
+              <button
+                className="danger line-row-delete"
+                title="Delete this line"
+                onClick={() => {
+                  updateNetwork((n) => deleteRoute(n, r.id));
+                  setMergeSel((sel) => sel.filter((x) => x !== r.id));
+                  clearSelectionIf(r.id);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {mergeSel.length === 2 && (
+        <button
+          style={{ width: "100%", marginTop: 6 }}
+          onClick={() => {
+            const [a, b] = mergeSel;
+            updateNetwork((n) => mergeRoutes(n, a, b));
+            clearSelectionIf(b);
+            setMergeSel([]);
+          }}
+        >
+          Merge checked lines
+        </button>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   type Vec2,
   ensureSegment,
   nodeDistance,
+  pairKey,
   pruneSegments,
   routeSegmentKeys,
 } from "@hcmap/shared";
@@ -258,6 +259,26 @@ export function deleteRoute(net: Network, routeId: Id): void {
 }
 
 /**
+ * Combine two lines into one — typically two disconnected chains that should
+ * really be a single named route (e.g. split by mistake, or drawn in two
+ * separate sessions). `bId`'s nodes are appended after `aId`'s and kept under
+ * `aId`'s identity (name/color/operator/defaults); `bId` is removed. If the
+ * two chains actually touch (last node of A === first node of B) the shared
+ * junction node isn't duplicated. No new segment is created for the gap
+ * between disconnected chains — nothing is physically drawn there, matching
+ * how they looked before merging; totalRouteLength() already skips such gaps.
+ */
+export function mergeRoutes(net: Network, aId: Id, bId: Id): void {
+  if (aId === bId) return;
+  const a = net.routes.find((r) => r.id === aId);
+  const b = net.routes.find((r) => r.id === bId);
+  if (!a || !b) return;
+  const touching = a.nodeIds[a.nodeIds.length - 1] === b.nodeIds[0];
+  a.nodeIds = [...a.nodeIds, ...(touching ? b.nodeIds.slice(1) : b.nodeIds)];
+  net.routes = net.routes.filter((r) => r.id !== bId);
+}
+
+/**
  * Remove a single physical segment from the network — cutting every route
  * that traverses it, rather than deleting the whole line. A route cut in the
  * middle splits into two (the far side becomes a new route with its own id);
@@ -311,11 +332,20 @@ export function removeOrphanNodes(net: Network): void {
   for (const id of Object.keys(net.nodes)) if (!used.has(id)) delete net.nodes[id];
 }
 
+/**
+ * Sum of the route's REAL track only — pairs with no actual segment (e.g. the
+ * join point of two lines merged via mergeRoutes() that never physically
+ * connected) contribute nothing, rather than a straight-line "as the crow
+ * flies" distance that was never really drawn on the map.
+ */
 export function totalRouteLength(net: Network, route: Route): number {
   let len = 0;
   for (let i = 0; i + 1 < route.nodeIds.length; i++) {
-    const a = net.nodes[route.nodeIds[i]];
-    const b = net.nodes[route.nodeIds[i + 1]];
+    const aId = route.nodeIds[i];
+    const bId = route.nodeIds[i + 1];
+    if (!net.segments[pairKey(aId, bId)]) continue;
+    const a = net.nodes[aId];
+    const b = net.nodes[bId];
     if (a && b) len += nodeDistance(a, b);
   }
   return len;

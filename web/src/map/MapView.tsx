@@ -33,7 +33,7 @@ import {
   snapshotTileUrlTemplate,
 } from "../api";
 
-export type BaseMode = "landscape2d" | "contour2d" | "minimal2d" | "biome" | "difference";
+export type BaseMode = "landscape2d" | "contour2d" | "minimal2d" | "biome" | "difference" | "blank";
 
 export interface MapViewProps {
   dimension: Dimension;
@@ -54,6 +54,12 @@ export interface MapViewProps {
   route: RouteResult | null;
   /** Route-finder is waiting for the user to click an endpoint. */
   routePicking?: boolean;
+  /** Railway operator subsetting — see OverlayRenderOpts.railwayOperatorVisible. */
+  railwayOperatorVisible?: (operator: string | undefined) => boolean;
+  /** Difference mode: serve the "natural features removed" tile variant. */
+  hideNaturalDiffs?: boolean;
+  /** Terrain 2D: overlay the baked water mask (black out all water). */
+  blackoutWater?: boolean;
   onCursor: (block: { x: number; z: number } | null) => void;
   onMapClick: (block: { x: number; z: number }) => void;
   onMapDblClick: () => void;
@@ -61,11 +67,11 @@ export interface MapViewProps {
 
 const SPAWN = { x: -182, z: 27 };
 
-function baseVariant(mode: BaseMode): BaseVariant {
+function baseVariant(mode: BaseMode, hideNaturalDiffs: boolean): BaseVariant {
   if (mode === "minimal2d") return "minimal";
   if (mode === "contour2d") return "bands";
   if (mode === "biome") return "biome";
-  if (mode === "difference") return "difference";
+  if (mode === "difference") return hideNaturalDiffs ? "difference-filtered" : "difference";
   return "terrain";
 }
 
@@ -86,6 +92,7 @@ export function MapView(props: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const baseRef = useRef<L.TileLayer | null>(null);
+  const waterRef = useRef<L.TileLayer | null>(null);
   const contourRef = useRef<L.GeoJSON | null>(null);
   const liveRef = useRef<L.LayerGroup | null>(null);
   const overlayRef = useRef<L.LayerGroup | null>(null);
@@ -145,6 +152,18 @@ export function MapView(props: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    // "blank" has no imagery at all — just a solid CSS background on the map
+    // container — so it skips the tile fetch/layer entirely.
+    map.getContainer().classList.toggle("base-blank", baseMode === "blank");
+    if (baseMode === "blank") {
+      if (baseRef.current) {
+        baseRef.current.remove();
+        baseRef.current = null;
+      }
+      map.setMinZoom(-6);
+      map.setMaxZoom(6);
+      return;
+    }
     let cancelled = false;
     // The manifest tells us how deep the overview pyramid goes for this
     // dimension, so zoomed-out views load a few pre-shrunk tiles, not hundreds.
@@ -152,7 +171,9 @@ export function MapView(props: MapViewProps) {
       if (cancelled || !mapRef.current) return;
       const minNative = m?.minNativeZoom ?? -4;
       if (baseRef.current) baseRef.current.remove();
-      const layer = L.tileLayer(snapshotTileUrlTemplate(dimension, baseVariant(baseMode)), {
+      const layer = L.tileLayer(
+        snapshotTileUrlTemplate(dimension, baseVariant(baseMode, props.hideNaturalDiffs ?? true)),
+        {
         tileSize: TILE_SIZE,
         minZoom: minNative - 1,
         maxZoom: 6,
@@ -183,7 +204,45 @@ export function MapView(props: MapViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [dimension, baseMode]);
+  }, [dimension, baseMode, props.hideNaturalDiffs]);
+
+  // --- water blackout overlay (Terrain 2D) ---
+  // Resistor elevation bands can't distinguish water from land at the same
+  // height, so an optional baked mask (opaque black over water, transparent
+  // elsewhere) is stacked directly above the base tiles.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (waterRef.current) {
+      waterRef.current.remove();
+      waterRef.current = null;
+    }
+    if (baseMode !== "contour2d" || !props.blackoutWater) return;
+    let cancelled = false;
+    void fetchJSON<{ minNativeZoom?: number }>(manifestUrl(dimension)).then((m) => {
+      if (cancelled || !mapRef.current) return;
+      const minNative = m?.minNativeZoom ?? -4;
+      const layer = L.tileLayer(snapshotTileUrlTemplate(dimension, "water"), {
+        tileSize: TILE_SIZE,
+        minZoom: minNative - 1,
+        maxZoom: 6,
+        minNativeZoom: minNative,
+        maxNativeZoom: NATIVE_ZOOM,
+        noWrap: true,
+        keepBuffer: 2,
+        updateWhenZooming: false,
+        errorTileUrl:
+          "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      });
+      layer.addTo(mapRef.current);
+      // Above the base tiles (added later = on top within the tile pane), and
+      // the overlay panes (vectors/markers) still render above tiles anyway.
+      waterRef.current = layer;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dimension, baseMode, props.blackoutWater]);
 
   // --- contour overlay ---
   // "contour2d" is the true Terrain 2D mode: its whole background is derived
@@ -242,11 +301,12 @@ export function MapView(props: MapViewProps) {
       pixelsPerBlock: Math.pow(2, zoom),
       onPattern: (id, colors) => patterns.push({ id, colors }),
       showTunnelDepths,
+      railwayOperatorVisible: props.railwayOperatorVisible,
     })) {
       group.addLayer(layer);
     }
     ensureStripePatterns(map, patterns);
-  }, [overlays, toggles, edit, overlayHandlers, zoom, showTunnelDepths]);
+  }, [overlays, toggles, edit, overlayHandlers, zoom, showTunnelDepths, props.railwayOperatorVisible]);
 
   // --- computed route highlight ---
   useEffect(() => {

@@ -220,6 +220,19 @@ function VertexPanel(p: { overlays: Overlays; target: PolyTarget; index: number;
   );
 }
 
+/**
+ * Whole-route batch edits overwrite every segment's own value for that field.
+ * When segments currently disagree (a "mixed" field), that silently discards
+ * whatever per-segment customization made them differ — so confirm first.
+ * Uniform fields aren't at risk (every segment already agrees), so no prompt.
+ */
+function confirmOverwriteIfMixed(mixed: boolean, label: string): boolean {
+  if (!mixed) return true;
+  return window.confirm(
+    `This route's segments currently have different ${label} values. Setting this will overwrite all of them with the same value. Continue?`,
+  );
+}
+
 // --- route (whole highway / rail line) ---
 
 function RouteSection(p: {
@@ -310,6 +323,7 @@ function RouteSection(p: {
                 placeholder="mixed"
                 onChange={(e) => {
                   const w = Number(e.target.value);
+                  if (!confirmOverwriteIfMixed(uWidth === undefined, "width")) return;
                   batch((s) => (s.width = w));
                   patch((r) => (r.defaults.width = w));
                 }}
@@ -324,8 +338,10 @@ function RouteSection(p: {
                   ref={setIndet(uFlat === undefined)}
                   checked={uFlat ?? false}
                   onChange={(e) => {
-                    batch((s) => (s.flat = e.target.checked));
-                    patch((r) => (r.defaults.flat = e.target.checked));
+                    const checked = e.target.checked;
+                    if (!confirmOverwriteIfMixed(uFlat === undefined, "flat")) return;
+                    batch((s) => (s.flat = checked));
+                    patch((r) => (r.defaults.flat = checked));
                   }}
                 />
                 Flat
@@ -336,8 +352,10 @@ function RouteSection(p: {
                   ref={setIndet(uPaved === undefined)}
                   checked={uPaved ?? true}
                   onChange={(e) => {
-                    batch((s) => (s.paved = e.target.checked));
-                    patch((r) => (r.defaults.paved = e.target.checked));
+                    const checked = e.target.checked;
+                    if (!confirmOverwriteIfMixed(uPaved === undefined, "paved")) return;
+                    batch((s) => (s.paved = checked));
+                    patch((r) => (r.defaults.paved = checked));
                   }}
                 />
                 Paved
@@ -350,8 +368,10 @@ function RouteSection(p: {
               ref={setIndet(uLit === undefined)}
               checked={uLit ?? false}
               onChange={(e) => {
-                batch((s) => (s.lit = e.target.checked));
-                patch((r) => (r.defaults.lit = e.target.checked));
+                const checked = e.target.checked;
+                if (!confirmOverwriteIfMixed(uLit === undefined, "lit")) return;
+                batch((s) => (s.lit = checked));
+                patch((r) => (r.defaults.lit = checked));
               }}
             />
             Lit
@@ -365,6 +385,7 @@ function RouteSection(p: {
                 placeholder="mixed / none"
                 onChange={(e) => {
                   const y = e.target.value === "" ? undefined : Number(e.target.value);
+                  if (!confirmOverwriteIfMixed(uTunnelY === undefined, "tunnel Y")) return;
                   batch((s) => (s.tunnelY = y));
                   patch((r) => (r.defaults.tunnelY = y));
                 }}
@@ -378,8 +399,10 @@ function RouteSection(p: {
                 ref={setIndet(uBuilt === undefined)}
                 checked={uBuilt ?? true}
                 onChange={(e) => {
-                  batch((s) => (s.built = e.target.checked));
-                  patch((r) => (r.defaults.built = e.target.checked));
+                  const checked = e.target.checked;
+                  if (!confirmOverwriteIfMixed(uBuilt === undefined, "built")) return;
+                  batch((s) => (s.built = checked));
+                  patch((r) => (r.defaults.built = checked));
                 }}
               />
               Built

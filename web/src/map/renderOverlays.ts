@@ -108,6 +108,14 @@ export interface OverlayRenderOpts {
    * render neutral grey.
    */
   showTunnelDepths?: boolean;
+  /**
+   * Whether a railway operator's lines should render. A rail segment is hidden
+   * only when every route using it belongs to a hidden operator — track shared
+   * with a visible-operator route, or claimed by no route at all, always shows.
+   * Stations (transfer points) are never filtered by this, regardless of which
+   * operators' lines serve them.
+   */
+  railwayOperatorVisible?: (operator: string | undefined) => boolean;
 }
 
 /** Deterministic id for a stripe pattern of the given colours. */
@@ -127,6 +135,14 @@ function conicGradient(colors: string[]): string {
 
 /** Minimum on-screen line weight so thin roads stay visible when zoomed out. */
 const MIN_LINE_PX = 2.5;
+
+/**
+ * Station entrances/exits only render once zoomed in this far (pixelsPerBlock
+ * = 2^zoom). At lower zoom their small fixed-size badges would sit bunched on
+ * top of each other and the station itself, since the polygon they belong to
+ * shrinks with zoom while the badge's on-screen size doesn't.
+ */
+const ENTRANCE_MIN_PIXELS_PER_BLOCK = 4;
 
 /**
  * A line's on-screen weight is its TRUE width in blocks (width * pixelsPerBlock),
@@ -175,7 +191,8 @@ interface PathEdge {
   bId: Id;
   a: Vec2;
   b: Vec2;
-  tunnelY: number;
+  /** Undefined means "not set" — never assume a depth of 0 for these. */
+  tunnelY: number | undefined;
 }
 
 function collectEdges(edges: PathEdge[], kind: LineKind, net: Network): void {
@@ -192,7 +209,7 @@ function collectEdges(edges: PathEdge[], kind: LineKind, net: Network): void {
       bId: seg.b,
       a: { x: a.x, z: a.z },
       b: { x: b.x, z: b.z },
-      tunnelY: props.tunnelY ?? 0,
+      tunnelY: props.tunnelY,
     });
   }
 }
@@ -242,7 +259,9 @@ function pushTunnelCrossings(layers: L.Layer[], opts: OverlayRenderOpts): void {
   if (opts.toggles.railway) collectEdges(edges, "railway", opts.railways);
 
   const junctions = new Map<string, Vec2>();
-  const crossings = new Map<string, { point: Vec2; diff: number }>();
+  // diff is null when either path's tunnel Y isn't set — the height
+  // difference there is genuinely unknown, not zero, so it's never computed.
+  const crossings = new Map<string, { point: Vec2; diff: number | null }>();
 
   for (let i = 0; i < edges.length; i++) {
     for (let j = i + 1; j < edges.length; j++) {
@@ -260,7 +279,11 @@ function pushTunnelCrossings(layers: L.Layer[], opts: OverlayRenderOpts): void {
       if (!pt) continue;
       const key = `${Math.round(pt.x)},${Math.round(pt.z)}`;
       if (!crossings.has(key)) {
-        crossings.set(key, { point: pt, diff: Math.round(Math.abs(e1.tunnelY - e2.tunnelY)) });
+        const diff =
+          e1.tunnelY === undefined || e2.tunnelY === undefined
+            ? null
+            : Math.round(Math.abs(e1.tunnelY - e2.tunnelY));
+        crossings.set(key, { point: pt, diff });
       }
     }
   }
@@ -278,15 +301,20 @@ function pushTunnelCrossings(layers: L.Layer[], opts: OverlayRenderOpts): void {
   }
 
   for (const { point, diff } of crossings.values()) {
+    const unknown = diff === null;
     const marker = L.marker(blockToLatLng(point.x, point.z), {
       icon: L.divIcon({
         className: "crossing-marker",
-        html: `<div class="crossing-badge">${diff}</div>`,
+        html: `<div class="crossing-badge${unknown ? " unknown" : ""}">${unknown ? "!" : diff}</div>`,
         iconSize: [22, 22],
         iconAnchor: [11, 11],
       }),
     });
-    marker.bindTooltip(`Grade-separated crossing — Δ${diff} blocks`);
+    marker.bindTooltip(
+      unknown
+        ? "Grade-separated crossing — tunnel Y not set for at least one path, height difference unknown"
+        : `Grade-separated crossing — Δ${diff} blocks`,
+    );
     layers.push(marker);
   }
 }
@@ -352,6 +380,19 @@ function nearestServingStation(
   return best;
 }
 
+/** Whether this station is the end of at least one of its (non-loop) lines. */
+function isTerminusStation(net: RailwayNetwork, st: Station, lines: Route[]): boolean {
+  for (const route of lines) {
+    const ids = route.nodeIds;
+    if (ids.length < 2 || ids[0] === ids[ids.length - 1]) continue; // loops have no terminus
+    const first = net.nodes[ids[0]];
+    const last = net.nodes[ids[ids.length - 1]];
+    if (first && nearestServingStation(net, route.id, first)?.id === st.id) return true;
+    if (last && nearestServingStation(net, route.id, last)?.id === st.id) return true;
+  }
+  return false;
+}
+
 /** "Terminus A ↔ Terminus B" for a rail line — end stations, coords, or loop. */
 function railTermini(route: Route, net: Network): string {
   const ids = route.nodeIds;
@@ -400,6 +441,21 @@ function pushNetwork(
     // Planned rail track that hasn't been built yet only shows while editing.
     const planned = rail && props.built === false;
     if (planned && !edit.enabled) continue;
+    const usingRoutes = segRoutes.get(seg.id) ?? [];
+    // Operator subsetting: hidden only when EVERY route claiming this track
+    // belongs to a hidden operator — track shared with a visible-operator route
+    // (or claimed by none) still shows. Bypassed while actively editing the
+    // railway layer, so editors keep full access to the whole network.
+    const operatorBypass = edit.enabled && edit.layer === "railway";
+    if (
+      rail &&
+      !operatorBypass &&
+      opts.railwayOperatorVisible &&
+      usingRoutes.length > 0 &&
+      !usingRoutes.some((r) => opts.railwayOperatorVisible!(r.operator))
+    ) {
+      continue;
+    }
     const selected = isSelected(edit.selection, "segment", seg.id);
     const paved = props.paved;
 
@@ -438,7 +494,6 @@ function pushNetwork(
       dashArray,
       lineCap: paved || rail ? "round" : "butt",
     });
-    const usingRoutes = segRoutes.get(seg.id) ?? [];
     const disrupt = disrupted
       ? `⚠ ${disruptionTypeLabel(type)}${note ? `: ${escape(note)}` : ""}`
       : "";
@@ -714,20 +769,24 @@ function pushStationLike(
   });
   layers.push(poly);
 
-  // Icon: a larger pie-chart badge of the served lines with a minecart on top.
+  // Icon: a pie-chart badge of the served lines with a minecart on top — full
+  // size for transfer stations (2+ lines) and termini (the end of a line);
+  // a plain stop along a single line renders at regular-landmark size instead.
   const n = st.polygon.length;
   const cx = st.polygon.reduce((s, p) => s + p.x, 0) / n;
   const cz = st.polygon.reduce((s, p) => s + p.z, 0) / n;
   const selected = isSelected(opts.edit.selection, "station", st.id);
+  const big = lines.length >= 2 || isTerminusStation(net, st, lines);
+  const size = big ? 40 : 28;
   const marker = L.marker(blockToLatLng(cx, cz), {
     opacity: planned ? 0.45 : 1,
     icon: L.divIcon({
       className: "landmark-marker",
-      html: `<div class="lm-badge station-pie${selected ? " sel" : ""}" style="background:${conicGradient(
+      html: `<div class="lm-badge station-pie${big ? "" : " small"}${selected ? " sel" : ""}" style="background:${conicGradient(
         colors,
       )}"><span class="station-inner"><img src="${iconUri("minecart")}" alt="" draggable="false"></span></div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
     }),
   });
   marker.bindTooltip(stationTooltip(st, lines, planned, district));
@@ -742,14 +801,19 @@ function pushStationLike(
   }
 
   for (const en of st.entrances ?? []) {
-    const enMarker = L.marker(blockToLatLng(en.point.x, en.point.z), {
+    if (opts.pixelsPerBlock < ENTRANCE_MIN_PIXELS_PER_BLOCK) continue;
+    const at = blockToLatLng(en.point.x, en.point.z);
+    // The badge alone is the clickable/draggable hitbox — small and precise,
+    // matching its visual size. The name label is a separate, non-interactive
+    // marker beside it so it never enlarges the area that drags the entrance.
+    const enMarker = L.marker(at, {
       opacity: planned ? 0.45 : 1,
       draggable: opts.edit.enabled,
       zIndexOffset: 1000, // always above the station's own body/marker at the same spot
       icon: L.divIcon({
         className: "access-marker",
-        html: `<div class="access-marker-row"><div class="access-badge ${en.kind}">${accessGlyph(en.kind)}</div><span class="access-label">${escape(en.name)}</span></div>`,
-        iconSize: [200, 16],
+        html: `<div class="access-badge ${en.kind}">${accessGlyph(en.kind)}</div>`,
+        iconSize: [16, 16],
         iconAnchor: [8, 8],
       }),
     });
@@ -766,6 +830,19 @@ function pushStationLike(
       });
     }
     layers.push(enMarker);
+
+    const label = L.marker(at, {
+      opacity: planned ? 0.45 : 1,
+      interactive: false,
+      zIndexOffset: 999,
+      icon: L.divIcon({
+        className: "access-label-marker",
+        html: `<span class="access-label">${escape(en.name)}</span>`,
+        iconSize: [200, 16],
+        iconAnchor: [-12, 8],
+      }),
+    });
+    layers.push(label);
   }
 }
 

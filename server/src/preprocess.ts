@@ -16,12 +16,15 @@ import {
   BIOME_CELL_SIZE,
   CONTOUR_DOWNSAMPLE,
   CONTOUR_INTERVAL,
+  DIFFERENCE_COARSE_CELL,
+  DIFFERENCE_FINE_RADIUS,
   SNAPSHOT_DIR,
   UPSTREAM,
   WORLD_SEED,
 } from "./config";
 import { classifyBiome, climateSampler, sampleClimate, URBAN_COLOR } from "./biome";
-import { originalHeight } from "./originalHeight";
+import { originalHeight, resetOriginalHeightCaches } from "./originalHeight";
+import { absoluteDiff, filterNaturalArtifacts } from "./differenceFilter";
 
 export interface Region {
   dimension: Dimension;
@@ -118,11 +121,14 @@ function tileUrl(dim: Dimension, lod: number, tx: number, tz: number): string {
 
 /**
  * Fetch and decode a lowres tile PNG. Returns null for empty (204/404) tiles.
- * Retries transient network failures (DNS blips, resets) a few times with a
- * short backoff — a full-map mirror can now run for hours (the "difference"
- * kind's per-block original-height computation is the main reason), long
- * enough that a single passing network hiccup shouldn't kill the whole run.
+ * Retries transient network failures for several minutes with exponential
+ * backoff — a full-map mirror runs for hours, and a DNS/network outage
+ * (observed twice: `ENOTFOUND mc.hackclub.com` mid-run) must not kill it.
+ * If retries are exhausted the error still propagates; callers in the tile
+ * pool additionally catch-and-skip so one dead tile can't sink a whole bake.
  */
+const FETCH_BACKOFF_S = [1, 2, 4, 8, 16, 30, 60, 60, 60];
+
 async function fetchTilePng(
   dim: Dimension,
   tx: number,
@@ -137,8 +143,8 @@ async function fetchTilePng(
     if (buf.length === 0) return null;
     return PNG.sync.read(buf);
   } catch (err) {
-    if (attempt >= 4) throw err;
-    await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+    if (attempt >= FETCH_BACKOFF_S.length) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 1000 * FETCH_BACKOFF_S[attempt]));
     return fetchTilePng(dim, tx, tz, attempt + 1);
   }
 }
@@ -194,6 +200,8 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   await fs.mkdir(path.join(dimDir, "bands"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "biome"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "difference"), { recursive: true });
+  await fs.mkdir(path.join(dimDir, "difference-filtered"), { recursive: true });
+  await fs.mkdir(path.join(dimDir, "water"), { recursive: true });
   await fs.mkdir(path.join(dimDir, "derived"), { recursive: true });
 
   const tileCoords: { tx: number; tz: number }[] = [];
@@ -209,9 +217,20 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   // ones-digit shading instead of inheriting the corner dot.
   const bandsTintSeed = new Map<string, PNG>();
   const differenceTintSeed = new Map<string, PNG>();
+  const differenceFilteredTintSeed = new Map<string, PNG>();
+  const failed: string[] = [];
 
   await pool(tileCoords, 6, async ({ tx, tz }) => {
-    const png = await fetchTilePng(dim, tx, tz);
+    let png: PNG | null;
+    try {
+      png = await fetchTilePng(dim, tx, tz);
+    } catch (err) {
+      // Retries exhausted (minutes of outage) — skip this tile rather than
+      // killing an hours-long bake; the summary below lists what to re-run.
+      failed.push(`${tx},${tz}`);
+      console.warn(`[mirror] tile ${tx},${tz} failed after retries:`, (err as Error).message);
+      return;
+    }
     if (!png) {
       empty++;
       return;
@@ -239,19 +258,62 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
     const bandsTint = new PNG({ width: S, height: S });
     const difference = new PNG({ width: bandsSize, height: bandsSize });
     const differenceTint = new PNG({ width: S, height: S });
+    const differenceFiltered = new PNG({ width: bandsSize, height: bandsSize });
+    const differenceFilteredTint = new PNG({ width: S, height: S });
     // Sub-pixel rows/cols making up the smaller inner dot (the bottom-right
     // corner of each block's N x N cell), e.g. N=2 -> just index 1.
     const innerLo = Math.floor(N / 2);
     const innerHi = N;
 
+    // Bound deepslate's unbounded interpolation-corner caches to one tile's
+    // worth. Safe under pool() concurrency: the loops below have no await,
+    // so one tile's height computations never interleave with another's.
+    resetOriginalHeightCaches();
+
+    // Whole-tile current + freshly-generated height grids, computed up front:
+    // the "Remove natural features" filter is morphological (it looks at a
+    // block's neighborhood), so it needs full grids rather than per-pixel
+    // streaming. The main loop below reuses curHeights instead of re-decoding.
+    const curHeights = new Int16Array(S * S);
+    const simHeights = new Int16Array(S * S);
+    for (let pz = 0; pz < S; pz++) {
+      for (let px = 0; px < S; px++) {
+        curHeights[pz * S + px] = decodeHeight(
+          data[idx(px, pz + metaOffset, srcW) + 1],
+          data[idx(px, pz + metaOffset, srcW) + 2],
+        );
+      }
+    }
+    // Fresh-world heights: full per-block resolution near spawn
+    // (DIFFERENCE_FINE_RADIUS), one sample per DIFFERENCE_COARSE_CELL square
+    // beyond it (cells straddling the boundary run per-block).
+    const C = DIFFERENCE_COARSE_CELL;
+    const R = DIFFERENCE_FINE_RADIUS;
+    for (let cz = 0; cz < S; cz += C) {
+      for (let cx = 0; cx < S; cx += C) {
+        const wx0 = tx * S + cx;
+        const wz0 = tz * S + cz;
+        const fine = wx0 <= R && wx0 + C - 1 >= -R && wz0 <= R && wz0 + C - 1 >= -R;
+        if (fine) {
+          for (let dz = 0; dz < C; dz++)
+            for (let dx = 0; dx < C; dx++)
+              simHeights[(cz + dz) * S + cx + dx] = originalHeight(WORLD_SEED, wx0 + dx, wz0 + dz);
+        } else {
+          const v = originalHeight(WORLD_SEED, wx0 + (C >> 1), wz0 + (C >> 1));
+          for (let dz = 0; dz < C; dz++)
+            for (let dx = 0; dx < C; dx++) simHeights[(cz + dz) * S + cx + dx] = v;
+        }
+      }
+    }
+    const rawDiff = absoluteDiff(curHeights, simHeights, S);
+    const filteredDiff = filterNaturalArtifacts(curHeights, simHeights, S);
+
     for (let pz = 0; pz < S; pz++) {
       for (let px = 0; px < S; px++) {
         const ci = idx(px, pz, srcW);
         const oi = idx(px, pz, S);
-        const h = decodeHeight(
-          data[idx(px, pz + metaOffset, srcW) + 1],
-          data[idx(px, pz + metaOffset, srcW) + 2],
-        );
+        const gi = pz * S + px;
+        const h = curHeights[gi];
 
         // color output
         colorPng.data[oi] = data[ci];
@@ -260,18 +322,30 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
         colorPng.data[oi + 3] = data[ci + 3];
 
         // Resistor-code cells (see the bands/difference declarations above):
-        // absolute elevation for Terrain 2D, and current-minus-original-height
-        // for the Difference view — identical tens-hue + ones-corner-dot scheme.
+        // absolute elevation for Terrain 2D, and |current − freshly-generated|
+        // height for the Difference view — identical tens-hue + ones-corner-dot
+        // scheme. Absolute value: raised and dug ground read the same. The
+        // filtered variant backs the "Remove natural features" toggle.
         const alpha = data[ci + 3];
         writeResistorCell(bands, bandsTint, px, pz, h, alpha, N, bandsSize, innerLo, innerHi);
-        const worldX = tx * S + px;
-        const worldZ = tz * S + pz;
         writeResistorCell(
           difference,
           differenceTint,
           px,
           pz,
-          h - originalHeight(WORLD_SEED, worldX, worldZ),
+          rawDiff[gi],
+          alpha,
+          N,
+          bandsSize,
+          innerLo,
+          innerHi,
+        );
+        writeResistorCell(
+          differenceFiltered,
+          differenceFilteredTint,
+          px,
+          pz,
+          filteredDiff[gi],
           alpha,
           N,
           bandsSize,
@@ -314,13 +388,21 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
     await writeTile(dimDir, "bands", 0, tx, tz, bands);
     await writeTile(dimDir, "biome", 0, tx, tz, biome);
     await writeTile(dimDir, "difference", 0, tx, tz, difference);
+    await writeTile(dimDir, "difference-filtered", 0, tx, tz, differenceFiltered);
+    await writeTile(dimDir, "water", 0, tx, tz, buildWaterTile(data, srcW, S));
     bandsTintSeed.set(`${tx},${tz}`, bandsTint);
     differenceTintSeed.set(`${tx},${tz}`, differenceTint);
+    differenceFilteredTintSeed.set(`${tx},${tz}`, differenceFilteredTint);
     written++;
     if (written % 20 === 0) {
       console.log(`[mirror] progress: ${written}/${tileCoords.length} tiles`);
     }
   });
+  if (failed.length) {
+    console.warn(
+      `[mirror] ${failed.length} tile(s) failed and were skipped (re-run a scoped mirror to fill): ${failed.join(" ")}`,
+    );
+  }
 
   // --- overview pyramid (so zoomed-out views load few, pre-shrunk tiles) ---
   const spanX = txMax - txMin + 1;
@@ -331,6 +413,8 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   await generateOverviews(dimDir, "bands", bounds, maxLevel, bandsTintSeed);
   await generateOverviews(dimDir, "biome", bounds, maxLevel);
   await generateOverviews(dimDir, "difference", bounds, maxLevel, differenceTintSeed);
+  await generateOverviews(dimDir, "difference-filtered", bounds, maxLevel, differenceFilteredTintSeed);
+  await generateOverviews(dimDir, "water", bounds, maxLevel);
   const minNativeZoom = await generateOverviews(dimDir, "minimal", bounds, maxLevel);
 
   // --- contours ---
@@ -378,7 +462,95 @@ export async function mirrorRegion(region: Region): Promise<MirrorResult> {
   };
 }
 
-type TileKind = "terrain" | "minimal" | "bands" | "biome" | "difference";
+type TileKind =
+  | "terrain"
+  | "minimal"
+  | "bands"
+  | "biome"
+  | "difference"
+  | "difference-filtered"
+  | "water";
+
+/**
+ * Whether a BlueMap surface color reads as water (blue-dominant). BlueMap has
+ * no material channel in lowres tiles, so color is the only signal; the same
+ * threshold classified water bottoms correctly in the ravine investigation.
+ * Ice and blue builds also match — acceptable for a readability mask.
+ */
+function isWaterColor(r: number, g: number, b: number): boolean {
+  return b > r + 20 && b > g + 10;
+}
+
+/**
+ * Build the "water" mask tile for one fetched BlueMap tile: opaque black over
+ * water, fully transparent elsewhere. Overlaid on Terrain 2D by the frontend
+ * ("Black out water"), since resistor elevation bands alone can't tell water
+ * from land at the same height.
+ */
+function buildWaterTile(data: Buffer, srcW: number, S: number): PNG {
+  const water = new PNG({ width: S, height: S });
+  for (let pz = 0; pz < S; pz++) {
+    for (let px = 0; px < S; px++) {
+      const ci = idx(px, pz, srcW);
+      const oi = idx(px, pz, S);
+      if (data[ci + 3] > 0 && isWaterColor(data[ci], data[ci + 1], data[ci + 2])) {
+        water.data[oi] = 0;
+        water.data[oi + 1] = 0;
+        water.data[oi + 2] = 0;
+        water.data[oi + 3] = 255;
+      }
+    }
+  }
+  return water;
+}
+
+/**
+ * Water-mask-only pass over a region: fetches the BlueMap tiles and (re)writes
+ * just the "water" tile kind + its overview pyramid. No simulation, no
+ * manifest writes — safe to run alongside (or much faster than) a full mirror.
+ */
+export async function mirrorWaterMasks(region: Region): Promise<{ written: number; empty: number }> {
+  const { dimension: dim } = region;
+  const txMin = blockToLowresTileIndex(region.minX, 1);
+  const txMax = blockToLowresTileIndex(region.maxX, 1);
+  const tzMin = blockToLowresTileIndex(region.minZ, 1);
+  const tzMax = blockToLowresTileIndex(region.maxZ, 1);
+  const S = LOWRES_TILE_SIZE;
+  const dimDir = path.join(SNAPSHOT_DIR, dim);
+  await fs.mkdir(path.join(dimDir, "water"), { recursive: true });
+
+  const tileCoords: { tx: number; tz: number }[] = [];
+  for (let tz = tzMin; tz <= tzMax; tz++)
+    for (let tx = txMin; tx <= txMax; tx++) tileCoords.push({ tx, tz });
+
+  let written = 0;
+  let empty = 0;
+  const failed: string[] = [];
+  await pool(tileCoords, 6, async ({ tx, tz }) => {
+    let png: PNG | null;
+    try {
+      png = await fetchTilePng(dim, tx, tz);
+    } catch (err) {
+      failed.push(`${tx},${tz}`);
+      console.warn(`[water] tile ${tx},${tz} failed after retries:`, (err as Error).message);
+      return;
+    }
+    if (!png) {
+      empty++;
+      return;
+    }
+    await writeTile(dimDir, "water", 0, tx, tz, buildWaterTile(png.data, png.width, S));
+    written++;
+    if (written % 100 === 0) console.log(`[water] progress: ${written}/${tileCoords.length}`);
+  });
+  if (failed.length) console.warn(`[water] ${failed.length} tile(s) failed: ${failed.join(" ")}`);
+
+  const spanX = txMax - txMin + 1;
+  const spanZ = tzMax - tzMin + 1;
+  const maxLevel = Math.min(6, Math.ceil(Math.log2(Math.max(1, spanX, spanZ))));
+  await generateOverviews(dimDir, "water", { xMin: txMin, xMax: txMax, yMin: tzMin, yMax: tzMax }, maxLevel);
+  return { written, empty };
+}
 
 const BIOME_CELLS_PER_TILE = LOWRES_TILE_SIZE / BIOME_CELL_SIZE;
 

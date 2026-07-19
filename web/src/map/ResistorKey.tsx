@@ -36,7 +36,7 @@ export function ResistorKey(props: { terrain: boolean; tunnel: boolean; differen
           " Terrain 2D: colors elevation (Y); zoomed in, the ones digit shows as a corner dot, zoomed out it shades the color light (0-4) or dark (5-9)."}
         {props.tunnel && " Tunnel view: colors tunnel depth (Y); the ones digit shows as a dashed overlay color."}
         {props.difference &&
-          " Difference: current top-block height minus the original seed-generated surface — tens digit is the cell color, ones digit the corner dot, same as Terrain 2D. Black means untouched; strong coherent color marks built-up (warm) or dug-out (white/cool) ground. The baseline is the smooth generated surface, so rugged natural terrain and tree cover show minor differences."}
+          " Difference: |current top-block height − freshly-generated top-block height|, simulated block-accurately from the seed. Tens digit = cell color, ones digit = corner dot, same as Terrain 2D. Black = untouched; any strong color = terraformed, with the same color whether raised or dug. \"Remove natural features\" hides narrow tree-canopy bumps (<~5 wide, ≤16 tall) and shallow carver ravines (≤32 deep); uncheck it to see every difference."}
       </div>
     </div>
   );
